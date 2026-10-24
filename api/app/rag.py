@@ -164,9 +164,9 @@ class RagService:
         self.language_model = language_model
         self.rate_limiter = rate_limiter
 
-    def ask(self, workspace_id: str, user_id: str | None, question: str, conversation_id: str | None = None, visitor_id: str | None = None) -> AskResult:
+    def ask(self, workspace_id: str, user_id: str | None, question: str, conversation_id: str | None = None, visitor_id: str | None = None, client_ip: str | None = None) -> AskResult:
         settings = get_settings()
-        limiter_key = f"{workspace_id}:{user_id}" if user_id else f"public:{workspace_id}:{visitor_id or 'anon'}"
+        limiter_key = f"{workspace_id}:{user_id}" if user_id else f"public:{workspace_id}:{client_ip or visitor_id or 'anon'}"
         self.rate_limiter.check(limiter_key, settings.chat_rate_limit, settings.chat_rate_window_seconds)
         try:
             query_vector = self.embeddings.embed([question])[0]

@@ -81,7 +81,7 @@ class InMemoryPublicChatRepository:
 
 
 class FakePublicRagService:
-    def ask(self, workspace_id: str, user_id: str | None, question: str, conversation_id: str | None = None, visitor_id: str | None = None) -> AskResult:
+    def ask(self, workspace_id: str, user_id: str | None, question: str, conversation_id: str | None = None, visitor_id: str | None = None, client_ip: str | None = None) -> AskResult:
         if "exempt" in question.lower() or "truck" in question.lower():
             return AskResult(
                 answer="Truck rental income is exempt from GST.",

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Protocol
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -159,16 +159,25 @@ def get_public_workspace(slug: str, repo: PublicChatRepository = Depends(get_pub
 def ask_public_workspace(
     slug: str,
     payload: PublicAskRequest,
+    request: Request,
     repo: PublicChatRepository = Depends(get_public_chat_repository),
     service: RagService = Depends(get_rag_service),
 ) -> AskResponse:
     workspace = repo.get_workspace_by_slug(slug)
+    client_ip = request.headers.get("x-forwarded-for")
+    if client_ip:
+        client_ip = client_ip.split(",")[0].strip()
+    elif request.client and request.client.host:
+        client_ip = request.client.host
+    else:
+        client_ip = "anon"
     result: AskResult = service.ask(
         workspace_id=workspace.id,
         user_id=None,
         question=payload.question.strip(),
         conversation_id=payload.conversation_id,
         visitor_id=payload.visitor_id,
+        client_ip=client_ip,
     )
     return AskResponse(
         answer=result.answer,

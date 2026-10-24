@@ -241,12 +241,13 @@ async def upload_document(
     user: CurrentUser = Depends(get_current_user),
     service: DocumentService = Depends(get_document_service),
 ) -> DocumentResponse:
-    if not file.filename:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="A filename is required.")
+    clean_name = Path(file.filename or "").name.strip()
+    if not clean_name:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="A valid filename is required.")
     settings = get_settings()
     data = await file.read(settings.max_upload_bytes + 1)
     try:
-        return _response(service.upload(workspace_id, user.id, file.filename, file.content_type, data))
+        return _response(service.upload(workspace_id, user.id, clean_name, file.content_type, data))
     except DocumentValidationError as error:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
     finally:
