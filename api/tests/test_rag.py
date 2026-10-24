@@ -44,12 +44,12 @@ class FakeRagRepository:
         self.indexed: list[tuple[str, str, list[tuple[str, list[float]]], str]] = []
         self.index_errors: list[str] = []
 
-    def retrieve(self, workspace_id: str, user_id: str, vector: list[float], limit: int, threshold: float) -> list[GroundingSource]:
+    def retrieve(self, workspace_id: str, user_id: str | None, vector: list[float], limit: int, threshold: float) -> list[GroundingSource]:
         if workspace_id != ALICE_WORKSPACE or user_id != ALICE:
             return []
         return self.sources[:limit]
 
-    def persist_exchange(self, workspace_id: str, user_id: str, question: str, answer: str, source_ids: list[str], is_mock: bool, conversation_id: str | None) -> str:
+    def persist_exchange(self, workspace_id: str, user_id: str | None, question: str, answer: str, source_ids: list[str], is_mock: bool, conversation_id: str | None, visitor_id: str | None = None) -> str:
         self.exchanges.append((workspace_id, question, answer, source_ids, is_mock))
         return conversation_id or "conversation-1"
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiUrl, getSupabaseClient } from "@/lib/supabase";
 import { DocumentManager } from "@/components/document-manager";
 import { KnowledgeChat } from "@/components/knowledge-chat";
+import { ConversationInspector } from "@/components/conversation-inspector";
 
 type Workspace = { id: string; name: string; slug: string; role: string };
 
@@ -51,5 +52,52 @@ export function WorkspaceDashboard() {
   async function signOut() { const supabase = getSupabaseClient(); await supabase.auth.signOut(); router.replace("/"); }
 
   if (loading) return <p className="p-8 text-slate-600">Checking your secure session…</p>;
-  return <div className="shell py-8"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="eyebrow">Private workspace</p><h1 className="mt-3 text-3xl font-extrabold tracking-tight">Your SupportDock</h1><p className="mt-2 text-slate-600">Signed in as {email}. Workspace access is checked by the API and database policies.</p></div><button className="button-secondary" onClick={() => void signOut()}>Sign out</button></div>{error && <p role="alert" className="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}<section className="mt-7 card p-6"><h2 className="text-lg font-extrabold">Your workspaces</h2>{workspaces.length > 0 ? <div className="mt-4 grid gap-3 sm:grid-cols-2">{workspaces.map((workspace) => <article className="rounded-xl border border-slate-200 p-4" key={workspace.id}><p className="font-bold">{workspace.name}</p><p className="mt-1 text-sm text-slate-500">{workspace.slug} · {workspace.role}</p></article>)}</div> : <p className="mt-3 text-sm leading-6 text-slate-600">You do not belong to a workspace yet. Create one below; you will become its owner.</p>}<form className="mt-6 flex flex-col gap-3 sm:flex-row" onSubmit={createWorkspace}><input required name="name" maxLength={120} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-3 outline-none focus:border-teal-500" placeholder="Business name" /><button className="button-primary disabled:opacity-60" disabled={creating}>{creating ? "Creating…" : "Create workspace"}</button></form></section>{workspaces[0] && <><DocumentManager workspace={workspaces[0]} /><KnowledgeChat workspace={workspaces[0]} /></>}<section className="mt-7 rounded-2xl bg-ink p-6 text-white"><p className="text-sm font-bold text-teal-300">GROUNDING SAFEGUARD</p><h2 className="mt-2 text-2xl font-extrabold">No evidence, no business answer.</h2><p className="mt-3 leading-7 text-slate-300">SupportDock returns a clear human-handoff response when the indexed knowledge base does not support an answer.</p></section></div>;
+  return (
+    <div className="shell py-8">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="eyebrow">Private workspace</p>
+          <h1 className="mt-3 text-3xl font-extrabold tracking-tight">Your SupportDock</h1>
+          <p className="mt-2 text-slate-600">Signed in as {email}. Workspace access is checked by the API and database policies.</p>
+        </div>
+        <button className="button-secondary" onClick={() => void signOut()}>Sign out</button>
+      </div>
+
+      {error && <p role="alert" className="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
+
+      <section className="mt-7 card p-6">
+        <h2 className="text-lg font-extrabold">Your workspaces</h2>
+        {workspaces.length > 0 ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {workspaces.map((workspace) => (
+              <article className="rounded-xl border border-slate-200 p-4" key={workspace.id}>
+                <p className="font-bold">{workspace.name}</p>
+                <p className="mt-1 text-sm text-slate-500">{workspace.slug} · {workspace.role}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 text-sm leading-6 text-slate-600">You do not belong to a workspace yet. Create one below; you will become its owner.</p>
+        )}
+        <form className="mt-6 flex flex-col gap-3 sm:flex-row" onSubmit={createWorkspace}>
+          <input required name="name" maxLength={120} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-3 outline-none focus:border-teal-500" placeholder="Business name" />
+          <button className="button-primary disabled:opacity-60" disabled={creating}>{creating ? "Creating…" : "Create workspace"}</button>
+        </form>
+      </section>
+
+      {workspaces[0] && (
+        <>
+          <ConversationInspector workspaceId={workspaces[0].id} slug={workspaces[0].slug} />
+          <DocumentManager workspace={workspaces[0]} />
+          <KnowledgeChat workspace={workspaces[0]} />
+        </>
+      )}
+
+      <section className="mt-7 rounded-2xl bg-ink p-6 text-white">
+        <p className="text-sm font-bold text-teal-300">GROUNDING SAFEGUARD</p>
+        <h2 className="mt-2 text-2xl font-extrabold">No evidence, no business answer.</h2>
+        <p className="mt-3 leading-7 text-slate-300">SupportDock returns a clear human-handoff response when the indexed knowledge base does not support an answer.</p>
+      </section>
+    </div>
+  );
 }

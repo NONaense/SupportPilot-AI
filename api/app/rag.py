@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_engine
-from app.models import Conversation, Document, DocumentChunk, Message, WorkspaceMember
+from app.models import Conversation, Document, DocumentChunk, Message, Workspace, WorkspaceMember
 from app.providers import EmbeddingProvider, GroundingSource, LanguageModelProvider, ProviderError, get_embedding_provider, get_language_model_provider
 
 UNKNOWN_ANSWER = "I don't know based on the available knowledge base. Please contact a human for help."
@@ -88,26 +88,45 @@ class DatabaseRagRepository:
             session.execute(update(Document).where(Document.id == uuid.UUID(document_id), Document.workspace_id == uuid.UUID(workspace_id)).values(indexing_status="error", indexing_error=message[:500]))
             session.commit()
 
-    def retrieve(self, workspace_id: str, user_id: str, vector: list[float], limit: int, threshold: float) -> list[GroundingSource]:
+    def retrieve(self, workspace_id: str, user_id: str | None, vector: list[float], limit: int, threshold: float) -> list[GroundingSource]:
         with Session(get_engine()) as session:
             workspace = uuid.UUID(workspace_id)
-            self._require_member(session, workspace, uuid.UUID(user_id))
+            if user_id:
+                self._require_member(session, workspace, uuid.UUID(user_id))
+            else:
+                if not session.scalar(select(Workspace.id).where(Workspace.id == workspace)):
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found.")
             rows = session.execute(text("""select * from match_document_chunks(cast(:embedding as vector), :workspace_id, :match_count, :match_threshold)"""), {"embedding": _vector_literal(vector), "workspace_id": workspace, "match_count": limit, "match_threshold": threshold}).mappings().all()
             return [GroundingSource(chunk_id=str(row["chunk_id"]), document_id=str(row["document_id"]), document_name=row["document_name"], content=row["content"], page_number=row["page_number"], section_title=row["section_title"], similarity=float(row["similarity"])) for row in rows]
 
-    def persist_exchange(self, workspace_id: str, user_id: str, question: str, answer: str, source_ids: list[str], is_mock: bool, conversation_id: str | None) -> str:
+    def persist_exchange(self, workspace_id: str, user_id: str | None, question: str, answer: str, source_ids: list[str], is_mock: bool, conversation_id: str | None, visitor_id: str | None = None) -> str:
         with Session(get_engine(), expire_on_commit=False) as session:
             workspace = uuid.UUID(workspace_id)
-            owner = uuid.UUID(user_id)
-            self._require_member(session, workspace, owner)
-            if conversation_id:
-                conversation = session.scalar(select(Conversation).where(Conversation.id == uuid.UUID(conversation_id), Conversation.workspace_id == workspace, Conversation.created_by_user_id == owner))
-                if not conversation:
-                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found.")
+            if user_id:
+                owner = uuid.UUID(user_id)
+                self._require_member(session, workspace, owner)
+                if conversation_id:
+                    conversation = session.scalar(select(Conversation).where(Conversation.id == uuid.UUID(conversation_id), Conversation.workspace_id == workspace, Conversation.created_by_user_id == owner))
+                    if not conversation:
+                        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found.")
+                else:
+                    conversation = Conversation(workspace_id=workspace, created_by_user_id=owner)
+                    session.add(conversation)
+                    session.flush()
             else:
-                conversation = Conversation(workspace_id=workspace, created_by_user_id=owner)
-                session.add(conversation)
-                session.flush()
+                if not session.scalar(select(Workspace.id).where(Workspace.id == workspace)):
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found.")
+                if conversation_id:
+                    query = select(Conversation).where(Conversation.id == uuid.UUID(conversation_id), Conversation.workspace_id == workspace)
+                    if visitor_id:
+                        query = query.where(Conversation.visitor_id == visitor_id)
+                    conversation = session.scalar(query)
+                    if not conversation:
+                        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found.")
+                else:
+                    conversation = Conversation(workspace_id=workspace, created_by_user_id=None, visitor_id=visitor_id)
+                    session.add(conversation)
+                    session.flush()
             session.add(Message(conversation_id=conversation.id, workspace_id=workspace, role="user", content=question, is_mock=False, source_chunk_ids=[]))
             session.add(Message(conversation_id=conversation.id, workspace_id=workspace, role="assistant", content=answer, is_mock=is_mock, source_chunk_ids=[uuid.UUID(source_id) for source_id in source_ids]))
             conversation.updated_at = datetime.utcnow()
@@ -145,9 +164,10 @@ class RagService:
         self.language_model = language_model
         self.rate_limiter = rate_limiter
 
-    def ask(self, workspace_id: str, user_id: str, question: str, conversation_id: str | None = None) -> AskResult:
+    def ask(self, workspace_id: str, user_id: str | None, question: str, conversation_id: str | None = None, visitor_id: str | None = None) -> AskResult:
         settings = get_settings()
-        self.rate_limiter.check(f"{workspace_id}:{user_id}", settings.chat_rate_limit, settings.chat_rate_window_seconds)
+        limiter_key = f"{workspace_id}:{user_id}" if user_id else f"public:{workspace_id}:{visitor_id or 'anon'}"
+        self.rate_limiter.check(limiter_key, settings.chat_rate_limit, settings.chat_rate_window_seconds)
         try:
             query_vector = self.embeddings.embed([question])[0]
             sources = self.repository.retrieve(workspace_id, user_id, query_vector, settings.rag_max_chunks, settings.rag_match_threshold)
@@ -155,13 +175,13 @@ class RagService:
         except ProviderError as error:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Knowledge search is temporarily unavailable.") from error
         if not sources:
-            conversation = self.repository.persist_exchange(workspace_id, user_id, question, UNKNOWN_ANSWER, [], False, conversation_id)
+            conversation = self.repository.persist_exchange(workspace_id, user_id, question, UNKNOWN_ANSWER, [], False, conversation_id, visitor_id=visitor_id)
             return AskResult(answer=UNKNOWN_ANSWER, sources=[], conversation_id=conversation, is_mock=False, provider="none", supported=False)
         try:
             generated = self.language_model.generate_grounded_answer(question, sources)
         except ProviderError as error:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Answer generation is temporarily unavailable.") from error
-        conversation = self.repository.persist_exchange(workspace_id, user_id, question, generated.text, [source.chunk_id for source in sources], generated.is_mock, conversation_id)
+        conversation = self.repository.persist_exchange(workspace_id, user_id, question, generated.text, [source.chunk_id for source in sources], generated.is_mock, conversation_id, visitor_id=visitor_id)
         return AskResult(answer=generated.text, sources=sources, conversation_id=conversation, is_mock=generated.is_mock, provider=generated.provider, supported=True)
 
 
