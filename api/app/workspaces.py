@@ -3,7 +3,7 @@ import uuid
 from dataclasses import dataclass
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -18,6 +18,14 @@ router = APIRouter(prefix="/api/v1/workspaces", tags=["workspaces"])
 
 class CreateWorkspaceRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("Workspace name cannot be empty or whitespace only.")
+        return trimmed
 
 
 class WorkspaceResponse(BaseModel):
@@ -42,7 +50,7 @@ def slugify(value: str) -> str:
 
 class DatabaseWorkspaceRepository:
     def list_for_user(self, user_id: str) -> list[WorkspaceRecord]:
-        with Session(get_engine()) as session:
+        with Session(get_engine(), expire_on_commit=False) as session:
             rows = session.execute(
                 select(Workspace, WorkspaceMember.role)
                 .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
@@ -55,7 +63,7 @@ class DatabaseWorkspaceRepository:
         owner_id = uuid.UUID(user_id)
         suffix = uuid.uuid4().hex[:8]
         workspace = Workspace(name=name.strip(), slug=f"{slugify(name)}-{suffix}", owner_user_id=owner_id)
-        with Session(get_engine()) as session:
+        with Session(get_engine(), expire_on_commit=False) as session:
             try:
                 session.add(workspace)
                 session.flush()

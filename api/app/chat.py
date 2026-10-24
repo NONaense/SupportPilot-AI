@@ -1,5 +1,7 @@
+import uuid
+
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.auth import CurrentUser, get_current_user
 from app.rag import AskResult, GroundingSource, RagService, get_rag_service
@@ -10,6 +12,24 @@ router = APIRouter(prefix="/api/v1/workspaces/{workspace_id}", tags=["knowledge 
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
     conversation_id: str | None = None
+
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("Question cannot be empty or whitespace only.")
+        return trimmed
+
+    @field_validator("conversation_id")
+    @classmethod
+    def validate_conversation_id(cls, value: str | None) -> str | None:
+        if not value or not value.strip():
+            return None
+        try:
+            return str(uuid.UUID(value.strip()))
+        except ValueError:
+            raise ValueError("conversation_id must be a valid UUID.")
 
 
 class SourceResponse(BaseModel):

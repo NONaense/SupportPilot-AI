@@ -103,10 +103,26 @@ class OpenAILanguageModelProvider:
         if not response.is_success:
             raise ProviderError("Language model rejected the request.")
         data = response.json()
-        text = data.get("output_text") or ""
+        text = _extract_response_text(data)
         if not text:
             raise ProviderError("Language model returned no answer.")
         return GenerationResult(text=text.strip(), is_mock=False, provider="openai")
+
+
+def _extract_response_text(data: dict) -> str:
+    if direct := data.get("output_text"):
+        return str(direct).strip()
+    texts: list[str] = []
+    for item in data.get("output", []):
+        if isinstance(item, dict) and item.get("type") == "message":
+            for content in item.get("content", []):
+                if isinstance(content, dict) and content.get("type") == "output_text" and "text" in content:
+                    texts.append(content["text"])
+                elif isinstance(content, dict) and "text" in content:
+                    texts.append(content["text"])
+                elif isinstance(content, str):
+                    texts.append(content)
+    return "\n".join(texts).strip()
 
 
 def get_embedding_provider() -> EmbeddingProvider:

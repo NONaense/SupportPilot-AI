@@ -57,6 +57,10 @@ class DatabaseRagRepository:
             document = session.scalar(select(Document).where(Document.id == uuid.UUID(document_id), Document.workspace_id == workspace))
             if not document:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+            if document.status != "ready":
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only ready documents can be indexed.")
+            if document.indexing_status == "indexing":
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Document is currently being indexed.")
             document.indexing_status = "indexing"
             document.indexing_attempts += 1
             document.indexing_error = None

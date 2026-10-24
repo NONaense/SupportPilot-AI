@@ -77,7 +77,7 @@ returns table (
   section_title text,
   similarity double precision
 )
-language sql stable
+language sql stable set search_path = public, extensions
 as $$
   select c.id, d.id, d.original_filename, c.content, c.page_number, c.section_title,
          1 - (e.embedding <=> query_embedding) as similarity
@@ -87,7 +87,10 @@ as $$
   where e.workspace_id = target_workspace_id
     and c.workspace_id = target_workspace_id
     and d.workspace_id = target_workspace_id
+    and d.status = 'ready'
     and 1 - (e.embedding <=> query_embedding) >= match_threshold
   order by e.embedding <=> query_embedding
   limit greatest(1, least(match_count, 12));
 $$;
+
+grant execute on function public.match_document_chunks to authenticated;

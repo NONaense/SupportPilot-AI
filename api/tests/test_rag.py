@@ -5,9 +5,12 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.auth import CurrentUser, get_auth_gateway
+from app.config import get_settings
 from app.chat import SourceResponse
 from app.main import app
-from app.providers import GroundingSource, MockEmbeddingProvider, MockLanguageModelProvider, ProviderError
+import httpx
+
+from app.providers import GroundingSource, MockEmbeddingProvider, MockLanguageModelProvider, OpenAILanguageModelProvider, ProviderError
 from app.rag import DatabaseRagRepository, InMemoryRateLimiter, RagIndexer, RagService, get_rag_service
 
 ALICE = str(uuid.uuid4())
@@ -166,3 +169,73 @@ def test_ask_endpoint_returns_real_retrieved_citation_shape(client: TestClient) 
 def test_ask_endpoint_rejects_excessively_long_question(client: TestClient) -> None:
     response = client.post(f"/api/v1/workspaces/{ALICE_WORKSPACE}/ask", headers={"Authorization": "Bearer alice-token"}, json={"question": "x" * 2001})
     assert response.status_code == 422
+
+
+def test_ask_endpoint_rejects_empty_or_whitespace_question(client: TestClient) -> None:
+    response = client.post(f"/api/v1/workspaces/{ALICE_WORKSPACE}/ask", headers={"Authorization": "Bearer alice-token"}, json={"question": "   \n\t  "})
+    assert response.status_code == 422
+
+
+def test_ask_endpoint_rejects_malformed_conversation_id(client: TestClient) -> None:
+    response = client.post(f"/api/v1/workspaces/{ALICE_WORKSPACE}/ask", headers={"Authorization": "Bearer alice-token"}, json={"question": "Valid question?", "conversation_id": "not-a-valid-uuid"})
+    assert response.status_code == 422
+
+
+def test_openai_language_model_provider_parses_responses_api_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    get_settings.cache_clear()
+    raw_responses_payload = {
+        "id": "resp_test123",
+        "output": [
+            {
+                "type": "message",
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "output_text",
+                        "text": "Memberships can be paused for up to 30 days per calendar year."
+                    }
+                ]
+            }
+        ]
+    }
+
+    def mock_post(*args, **kwargs):
+        request = httpx.Request("POST", "https://api.openai.com/v1/responses")
+        return httpx.Response(200, json=raw_responses_payload, request=request)
+
+    monkeypatch.setattr(httpx, "post", mock_post)
+    provider = OpenAILanguageModelProvider()
+    result = provider.generate_grounded_answer("Can I pause?", [SOURCE])
+    assert result.text == "Memberships can be paused for up to 30 days per calendar year."
+    assert result.is_mock is False
+    assert result.provider == "openai"
+
+
+def test_openai_language_model_provider_parses_direct_output_text(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    get_settings.cache_clear()
+    direct_payload = {"output_text": "Direct output text answer."}
+
+    def mock_post(*args, **kwargs):
+        request = httpx.Request("POST", "https://api.openai.com/v1/responses")
+        return httpx.Response(200, json=direct_payload, request=request)
+
+    monkeypatch.setattr(httpx, "post", mock_post)
+    provider = OpenAILanguageModelProvider()
+    result = provider.generate_grounded_answer("Can I pause?", [SOURCE])
+    assert result.text == "Direct output text answer."
+
+
+def test_openai_language_model_provider_rejects_empty_answer(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    get_settings.cache_clear()
+
+    def mock_post(*args, **kwargs):
+        request = httpx.Request("POST", "https://api.openai.com/v1/responses")
+        return httpx.Response(200, json={"output": []}, request=request)
+
+    monkeypatch.setattr(httpx, "post", mock_post)
+    provider = OpenAILanguageModelProvider()
+    with pytest.raises(ProviderError, match="Language model returned no answer"):
+        provider.generate_grounded_answer("Can I pause?", [SOURCE])

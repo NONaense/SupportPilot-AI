@@ -24,7 +24,7 @@ class SupabasePrivateStorage:
         settings = get_settings()
         url = f"{settings.supabase_url.rstrip('/')}/storage/v1/object/{settings.supabase_storage_bucket}/{quote(storage_path, safe='/')}"
         try:
-            response = httpx.put(url, content=content, headers={**self._headers(content_type), "x-upsert": "false"}, timeout=20.0)
+            response = httpx.post(url, content=content, headers={**self._headers(content_type), "x-upsert": "false"}, timeout=20.0)
         except httpx.HTTPError as error:
             raise StorageError("Private storage could not be reached.") from error
         if not response.is_success:
@@ -34,7 +34,13 @@ class SupabasePrivateStorage:
         settings = get_settings()
         url = f"{settings.supabase_url.rstrip('/')}/storage/v1/object/{settings.supabase_storage_bucket}"
         try:
-            response = httpx.delete(url, json={"prefixes": [storage_path]}, headers=self._headers(), timeout=20.0)
+            response = httpx.request(
+                "DELETE",
+                url,
+                json={"prefixes": [storage_path]},
+                headers=self._headers("application/json"),
+                timeout=20.0,
+            )
         except httpx.HTTPError as error:
             raise StorageError("Private storage could not be reached.") from error
         if not response.is_success:

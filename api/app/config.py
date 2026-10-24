@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     chat_rate_limit: int = 20
     chat_rate_window_seconds: int = 60
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=(".env", "api/.env"), extra="ignore")
 
 
 @lru_cache

@@ -33,8 +33,9 @@ export function WorkspaceDashboard() {
 
   async function createWorkspace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setCreating(true); setError(undefined);
+    const form = event.currentTarget;
     try {
-      const name = String(new FormData(event.currentTarget).get("name") ?? "");
+      const name = String(new FormData(form).get("name") ?? "");
       const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace("/login"); return; }
@@ -42,7 +43,7 @@ export function WorkspaceDashboard() {
       if (!response.ok) throw new Error((await response.json()).detail ?? "Could not create your workspace.");
       const createdWorkspace: Workspace = await response.json();
       setWorkspaces((current) => [...current, createdWorkspace]);
-      event.currentTarget.reset();
+      form.reset();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not create your workspace."); }
     finally { setCreating(false); }
   }

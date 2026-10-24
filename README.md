@@ -51,7 +51,7 @@ Copy-Item api\.env.example api\.env
 
 5. Edit `web\.env.local` with the Project URL and anon key. Edit `api\.env` with the same two values and a server-side Postgres connection string from **Project Settings → Database**. Use Supabase’s Transaction pooler connection string if your network does not support IPv6.
 6. Keep `SUPABASE_SERVICE_ROLE_KEY` only in `api\.env`. Do not copy it into a `NEXT_PUBLIC_` variable, browser code, a screenshot, or Git.
-7. Apply both migrations in `supabase/migrations/` in filename order. In the Supabase SQL Editor, run [identity/workspaces](supabase/migrations/202610220001_identity_and_workspaces.sql) first, then [knowledge base documents](supabase/migrations/202610220002_knowledge_base_documents.sql). Alternatively, install the Supabase CLI and run `supabase db push` from the repository root after linking your project.
+7. Apply all three migrations in `supabase/migrations/` in filename order. In the Supabase SQL Editor, run [identity/workspaces](supabase/migrations/202610220001_identity_and_workspaces.sql) first, then [knowledge base documents](supabase/migrations/202610220002_knowledge_base_documents.sql), followed by [RAG embeddings and conversations](supabase/migrations/202610220003_rag_embeddings_and_conversations.sql). Alternatively, install the Supabase CLI and run `supabase db push` from the repository root after linking your project.
 
 The migrations create a profile for every Auth user, workspace ownership/membership records, private knowledge-base records/chunks, and RLS rules. They deliberately give browser clients no permission to create memberships, elevate their role, or access Storage objects directly.
 

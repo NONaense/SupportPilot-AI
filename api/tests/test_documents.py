@@ -6,8 +6,11 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.auth import CurrentUser, get_auth_gateway
+from app.config import get_settings
 from app.documents import DocumentRecord, get_document_service
 from app.main import app
+import httpx
+from app.storage import SupabasePrivateStorage, StorageError
 
 ALICE = str(uuid.uuid4())
 BOB = str(uuid.uuid4())
@@ -115,3 +118,53 @@ def test_cross_tenant_delete_cannot_remove_file(client: TestClient, service: Fak
     response = client.delete(f"/api/v1/workspaces/{ALICE_WORKSPACE}/documents/doc-1", headers=auth("bob-token"))
     assert response.status_code == 404
     assert "alice/doc-1/guide.txt" in service.storage_paths
+
+
+def test_supabase_private_storage_uses_post_and_bearer_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-service-key")
+    monkeypatch.setenv("SUPABASE_STORAGE_BUCKET", "supportdock-documents")
+    get_settings.cache_clear()
+
+    captured_requests = []
+
+    def mock_post(url, *args, **kwargs):
+        captured_requests.append((url, kwargs))
+        request = httpx.Request("POST", url)
+        return httpx.Response(200, request=request)
+
+    monkeypatch.setattr(httpx, "post", mock_post)
+    storage = SupabasePrivateStorage()
+    storage.upload("workspace/doc/file.txt", b"hello", "text/plain")
+
+    assert len(captured_requests) == 1
+    url, kwargs = captured_requests[0]
+    assert url == "https://example.supabase.co/storage/v1/object/supportdock-documents/workspace/doc/file.txt"
+    assert kwargs["headers"]["Authorization"] == "Bearer test-service-key"
+    assert kwargs["headers"]["apikey"] == "test-service-key"
+    assert kwargs["headers"]["x-upsert"] == "false"
+    assert kwargs["content"] == b"hello"
+
+
+def test_supabase_private_storage_delete_passes_prefixes(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-service-key")
+    monkeypatch.setenv("SUPABASE_STORAGE_BUCKET", "supportdock-documents")
+    get_settings.cache_clear()
+
+    captured_deletes = []
+
+    def mock_request(method, url, *args, **kwargs):
+        captured_deletes.append((method, url, kwargs))
+        request = httpx.Request(method, url)
+        return httpx.Response(200, request=request)
+
+    monkeypatch.setattr(httpx, "request", mock_request)
+    storage = SupabasePrivateStorage()
+    storage.delete("workspace/doc/file.txt")
+
+    assert len(captured_deletes) == 1
+    method, url, kwargs = captured_deletes[0]
+    assert method == "DELETE"
+    assert url == "https://example.supabase.co/storage/v1/object/supportdock-documents"
+    assert kwargs["json"] == {"prefixes": ["workspace/doc/file.txt"]}

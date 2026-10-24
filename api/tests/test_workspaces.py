@@ -73,6 +73,11 @@ def test_workspace_creation_assigns_authenticated_user_as_owner(client: TestClie
     assert response.json()["name"] == "Alice Pilates"
 
 
+def test_workspace_creation_rejects_whitespace_name(client: TestClient) -> None:
+    response = client.post("/api/v1/workspaces", headers={"Authorization": "Bearer alice-token"}, json={"name": "   "})
+    assert response.status_code == 422
+
+
 def test_workspace_route_rejects_invalid_session(client: TestClient) -> None:
     response = client.get("/api/v1/workspaces", headers={"Authorization": "Bearer not-a-session"})
     assert response.status_code == 401
