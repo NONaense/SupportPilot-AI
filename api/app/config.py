@@ -15,11 +15,14 @@ class Settings(BaseSettings):
     supabase_storage_bucket: str = "supportdock-documents"
     max_upload_bytes: int = 10 * 1024 * 1024
     openai_api_key: str = ""
+    gemini_api_key: str = ""
     embedding_provider: str = "mock"
     language_model_provider: str = "mock"
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 256
     response_model: str = "gpt-4.1-mini"
+    gemini_embedding_model: str = "gemini-embedding-001"
+    gemini_response_model: str = "gemini-2.0-flash"
     rag_match_threshold: float = 0.45
     rag_max_chunks: int = 5
     rag_question_max_chars: int = 2000

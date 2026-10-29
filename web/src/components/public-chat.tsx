@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { apiUrl } from "@/lib/supabase";
 import { Brand } from "@/components/brand";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type Source = {
   chunk_id: string;
@@ -188,11 +189,12 @@ export function PublicChat({ slug }: { slug: string }) {
               <button
                 type="button"
                 onClick={startNewConversation}
-                className="text-xs font-bold text-slate-500 hover:text-slate-800"
+                className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
               >
                 + New chat
               </button>
             )}
+            <ThemeToggle />
             <Brand />
           </div>
         </div>

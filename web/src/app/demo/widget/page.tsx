@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChatWidget } from "@/components/chat-widget";
+import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
 
 const DEFAULT_SLUG = "lahiri-transports-b3c5e248";
@@ -42,6 +43,7 @@ function WidgetDemoView() {
             <a href="#contact" className="transition hover:text-white">Contact</a>
           </nav>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <Link
               href="/dashboard"
               className="rounded-lg border border-slate-700 bg-slate-800/80 px-3.5 py-1.5 text-xs font-semibold text-slate-200 transition hover:bg-slate-700"

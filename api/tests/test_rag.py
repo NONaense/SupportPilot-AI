@@ -239,3 +239,64 @@ def test_openai_language_model_provider_rejects_empty_answer(monkeypatch: pytest
     provider = OpenAILanguageModelProvider()
     with pytest.raises(ProviderError, match="Language model returned no answer"):
         provider.generate_grounded_answer("Can I pause?", [SOURCE])
+
+
+def test_gemini_embedding_provider_requires_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.providers import GeminiEmbeddingProvider
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    get_settings.cache_clear()
+    with pytest.raises(ProviderError, match="GEMINI_API_KEY is required"):
+        GeminiEmbeddingProvider()
+
+
+def test_gemini_embedding_provider_generates_256_dim_vectors(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.providers import GeminiEmbeddingProvider
+    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
+    get_settings.cache_clear()
+
+    mock_vector = [0.05] * 256
+    mock_response_payload = {
+        "embeddings": [
+            {"values": mock_vector}
+        ]
+    }
+
+    def mock_post(*args, **kwargs):
+        request = httpx.Request("POST", "https://generativelanguage.googleapis.com")
+        return httpx.Response(200, json=mock_response_payload, request=request)
+
+    monkeypatch.setattr(httpx, "post", mock_post)
+    provider = GeminiEmbeddingProvider()
+    vectors = provider.embed(["Sample document text"])
+    assert len(vectors) == 1
+    assert len(vectors[0]) == 256
+    assert vectors[0] == mock_vector
+
+
+def test_gemini_language_model_provider_generates_grounded_answer(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.providers import GeminiLanguageModelProvider
+    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
+    get_settings.cache_clear()
+
+    mock_gemini_response = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {"text": "Memberships can be paused for up to 30 days."}
+                    ]
+                }
+            }
+        ]
+    }
+
+    def mock_post(*args, **kwargs):
+        request = httpx.Request("POST", "https://generativelanguage.googleapis.com")
+        return httpx.Response(200, json=mock_gemini_response, request=request)
+
+    monkeypatch.setattr(httpx, "post", mock_post)
+    provider = GeminiLanguageModelProvider()
+    result = provider.generate_grounded_answer("Can I pause my membership?", [SOURCE])
+    assert result.text == "Memberships can be paused for up to 30 days."
+    assert result.is_mock is False
+    assert result.provider == "gemini"
