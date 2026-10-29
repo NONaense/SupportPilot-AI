@@ -1,0 +1,45 @@
+# Render Blueprint specification for SupportDock API (Free Tier)
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: supportdock-api
+    runtime: python
+    rootDir: api
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: WEB_ORIGIN
+        sync: false
+        # Example: "https://your-app.vercel.app,http://localhost:3000"
+      - key: SUPABASE_URL
+        sync: false
+        # Example: "https://xxxx.supabase.co"
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+        # Keep secret on server side only
+      - key: DATABASE_URL
+        sync: false
+        # Example: "postgresql+psycopg://postgres:password@db.xxxx.supabase.co:5432/postgres"
+      - key: SUPABASE_STORAGE_BUCKET
+        value: supportdock-documents
+      - key: EMBEDDING_PROVIDER
+        value: mock
+      - key: LANGUAGE_MODEL_PROVIDER
+        value: mock
+      - key: CHAT_RATE_LIMIT
+        value: "20"
+      - key: CHAT_RATE_WINDOW_SECONDS
+        value: "60"
+      - key: MAX_UPLOAD_BYTES
+        value: "10485760"

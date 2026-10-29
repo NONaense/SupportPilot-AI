@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     chat_rate_limit: int = 20
     chat_rate_window_seconds: int = 60
 
+    @property
+    def cors_origins(self) -> list[str]:
+        origins = [item.strip() for item in self.web_origin.split(",") if item.strip()]
+        return origins or ["http://localhost:3000"]
+
     model_config = SettingsConfigDict(env_file=(".env", "api/.env"), extra="ignore")
 
 
