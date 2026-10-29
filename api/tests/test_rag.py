@@ -256,9 +256,7 @@ def test_gemini_embedding_provider_generates_256_dim_vectors(monkeypatch: pytest
 
     mock_vector = [0.05] * 256
     mock_response_payload = {
-        "embeddings": [
-            {"values": mock_vector}
-        ]
+        "embedding": {"values": mock_vector}
     }
 
     def mock_post(*args, **kwargs):

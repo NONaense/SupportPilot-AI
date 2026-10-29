@@ -123,32 +123,31 @@ class GeminiEmbeddingProvider:
         self.api_key = settings.gemini_api_key
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:batchEmbedContents?key={self.api_key}"
-        payload = {
-            "requests": [
-                {
-                    "model": f"models/{self.model}",
-                    "content": {"parts": [{"text": text}]},
-                    "outputDimensionality": self.dimensions,
-                }
-                for text in texts
-            ]
-        }
-        try:
-            response = httpx.post(url, json=payload, timeout=20.0)
-        except httpx.TimeoutException as error:
-            raise ProviderError("Gemini embedding provider timed out.") from error
-        except httpx.HTTPError as error:
-            raise ProviderError("Gemini embedding provider is unavailable.") from error
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:embedContent?key={self.api_key}"
+        vectors: list[list[float]] = []
+        for text in texts:
+            payload = {
+                "model": f"models/{self.model}",
+                "content": {"parts": [{"text": text}]},
+                "outputDimensionality": self.dimensions,
+            }
+            try:
+                response = httpx.post(url, json=payload, timeout=20.0)
+            except httpx.TimeoutException as error:
+                raise ProviderError("Gemini embedding provider timed out.") from error
+            except httpx.HTTPError as error:
+                raise ProviderError("Gemini embedding provider is unavailable.") from error
 
-        if not response.is_success:
-            raise ProviderError(f"Gemini embedding provider rejected the request: {response.text[:200]}")
+            if not response.is_success:
+                logger.error("Gemini embedding provider rejected request (%s): %s", response.status_code, response.text[:200])
+                raise ProviderError(f"Gemini embedding API error ({response.status_code}): {response.text[:120]}")
 
-        data = response.json()
-        raw_embeddings = data.get("embeddings", [])
-        vectors = [item.get("values", []) for item in raw_embeddings]
-        if len(vectors) != len(texts) or any(len(vector) != self.dimensions for vector in vectors):
-            raise ProviderError("Gemini embedding provider returned unexpected vector dimensions.")
+            data = response.json()
+            embedding_vals = data.get("embedding", {}).get("values", [])
+            if len(embedding_vals) != self.dimensions:
+                raise ProviderError(f"Gemini embedding provider returned {len(embedding_vals)} dimensions, expected {self.dimensions}.")
+            vectors.append(embedding_vals)
+
         return vectors
 
 
