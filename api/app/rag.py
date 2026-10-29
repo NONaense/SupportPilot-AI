@@ -1,3 +1,4 @@
+import logging
 import threading
 import time
 import uuid
@@ -12,6 +13,8 @@ from app.config import get_settings
 from app.database import get_engine
 from app.models import Conversation, Document, DocumentChunk, Message, Workspace, WorkspaceMember
 from app.providers import EmbeddingProvider, GroundingSource, LanguageModelProvider, ProviderError, get_embedding_provider, get_language_model_provider
+
+logger = logging.getLogger("supportdock.rag")
 
 UNKNOWN_ANSWER = "I don't know based on the available knowledge base. Please contact a human for help."
 
@@ -173,14 +176,16 @@ class RagService:
             sources = self.repository.retrieve(workspace_id, user_id, query_vector, settings.rag_max_chunks, settings.rag_match_threshold)
             sources = [source for source in sources if source.similarity >= settings.rag_match_threshold]
         except ProviderError as error:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Knowledge search is temporarily unavailable.") from error
+            logger.error("Knowledge search failed: %s", error)
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Knowledge search is temporarily unavailable: {error}") from error
         if not sources:
             conversation = self.repository.persist_exchange(workspace_id, user_id, question, UNKNOWN_ANSWER, [], False, conversation_id, visitor_id=visitor_id)
             return AskResult(answer=UNKNOWN_ANSWER, sources=[], conversation_id=conversation, is_mock=False, provider="none", supported=False)
         try:
             generated = self.language_model.generate_grounded_answer(question, sources)
         except ProviderError as error:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Answer generation is temporarily unavailable.") from error
+            logger.error("Answer generation failed: %s", error)
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Answer generation is temporarily unavailable: {error}") from error
         conversation = self.repository.persist_exchange(workspace_id, user_id, question, generated.text, [source.chunk_id for source in sources], generated.is_mock, conversation_id, visitor_id=visitor_id)
         return AskResult(answer=generated.text, sources=sources, conversation_id=conversation, is_mock=generated.is_mock, provider=generated.provider, supported=True)
 

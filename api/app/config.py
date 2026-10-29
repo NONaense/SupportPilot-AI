@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 256
     response_model: str = "gpt-4.1-mini"
-    gemini_embedding_model: str = "gemini-embedding-001"
+    gemini_embedding_model: str = "text-embedding-004"
     gemini_response_model: str = "gemini-2.0-flash"
     rag_match_threshold: float = 0.45
     rag_max_chunks: int = 5

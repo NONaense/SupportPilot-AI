@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import math
 import re
 from dataclasses import dataclass
@@ -7,6 +8,8 @@ from typing import Protocol
 import httpx
 
 from app.config import get_settings
+
+logger = logging.getLogger("supportdock.providers")
 
 
 class ProviderError(RuntimeError):
@@ -101,7 +104,8 @@ class OpenAILanguageModelProvider:
         except httpx.HTTPError as error:
             raise ProviderError("Language model is unavailable.") from error
         if not response.is_success:
-            raise ProviderError("Language model rejected the request.")
+            logger.error("OpenAI language model rejected request (%s): %s", response.status_code, response.text[:200])
+            raise ProviderError(f"OpenAI API error ({response.status_code}): {response.text[:120]}")
         data = response.json()
         text = _extract_response_text(data)
         if not text:
@@ -167,11 +171,12 @@ class GeminiLanguageModelProvider:
             "system_instruction": {"parts": [{"text": instructions}]},
             "contents": [
                 {
+                    "role": "user",
                     "parts": [
                         {
                             "text": f"BEGIN UNTRUSTED CUSTOMER QUESTION\n{question}\nEND UNTRUSTED CUSTOMER QUESTION\n\nRETRIEVED CONTEXT:\n{context}"
                         }
-                    ]
+                    ],
                 }
             ],
             "generationConfig": {"temperature": 0.0, "maxOutputTokens": 500},
@@ -184,7 +189,8 @@ class GeminiLanguageModelProvider:
             raise ProviderError("Gemini language model is unavailable.") from error
 
         if not response.is_success:
-            raise ProviderError(f"Gemini language model rejected the request: {response.text[:200]}")
+            logger.error("Gemini language model rejected request (%s): %s", response.status_code, response.text[:200])
+            raise ProviderError(f"Gemini API error ({response.status_code}): {response.text[:120]}")
 
         data = response.json()
         candidates = data.get("candidates", [])
