@@ -6,6 +6,16 @@ SupportDock turns private business documentation into a trustworthy, embeddable 
 
 ---
 
+## 🌐 Live Demonstration
+
+- 🚀 **Live Web Application**: [https://support-pilot-ai-6y99.vercel.app](https://support-pilot-ai-6y99.vercel.app)
+- 💬 **Live Embeddable Widget Showcase**: [https://support-pilot-ai-6y99.vercel.app/demo/widget](https://support-pilot-ai-6y99.vercel.app/demo/widget)
+- ⚙️ **Live Backend API**: [https://supportdock-api.onrender.com](https://supportdock-api.onrender.com)
+- 🩺 **Live Health & Readiness Check**: [https://supportdock-api.onrender.com/health](https://supportdock-api.onrender.com/health)
+- 📖 **Interactive Swagger UI**: [https://supportdock-api.onrender.com/docs](https://supportdock-api.onrender.com/docs)
+
+---
+
 ## Key Features
 
 - 🛡️ **Grounded Retrieval & Anti-Hallucination**: Answers are generated strictly from retrieved document chunks. When evidence is insufficient, SupportDock returns a transparent uncertainty and human-handoff response rather than inventing answers.
@@ -27,7 +37,7 @@ SupportDock turns private business documentation into a trustworthy, embeddable 
 | **Private Storage** | Supabase Storage (`supportdock-documents` private bucket) |
 | **AI Providers** | Deterministic simulation mock (default) or OpenAI Responses API |
 | **Testing** | 56 automated tests (`pytest`), TypeScript strict type-checking |
-| **Target Deployment** | Vercel (Frontend) & Render (Backend) |
+| **Deployment** | Vercel (Frontend) & Render (Backend) |
 
 ---
 
