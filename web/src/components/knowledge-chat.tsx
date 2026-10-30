@@ -97,27 +97,29 @@ export function KnowledgeChat({ workspace }: { workspace: Workspace }) {
   }
 
   return (
-    <section className="mt-7 card overflow-hidden">
-      <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-teal-50 to-white p-5 sm:p-6">
+    <section className="mt-7 card overflow-hidden dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-teal-50 to-white p-5 sm:p-6 dark:border-slate-800 dark:from-slate-800/80 dark:to-slate-900">
         <div>
           <p className="eyebrow">Internal Knowledge Test</p>
-          <h2 className="mt-2 text-xl font-extrabold text-slate-900">Ask {workspace.name}</h2>
-          <p className="mt-1 text-xs text-slate-500">
-            Verify RAG responses and citations against your indexed documents.
+          <h2 className="mt-2 text-xl font-extrabold text-slate-900 dark:text-white">
+            Ask {workspace.name}
+          </h2>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Verify RAG responses directly against your indexed documents.
           </p>
         </div>
         {messages.length > 0 && (
           <button
             type="button"
             onClick={clearHistory}
-            className="text-xs font-bold text-slate-500 hover:text-slate-800"
+            className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
           >
             Clear chat
           </button>
         )}
       </div>
 
-      <div className="p-5 sm:p-6">
+      <div className="p-5 sm:p-6 dark:bg-slate-950/20">
         {messages.length > 0 && (
           <div className="mb-4 space-y-3">
             {messages.map((msg) => (
@@ -126,53 +128,25 @@ export function KnowledgeChat({ workspace }: { workspace: Workspace }) {
                 className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
               >
                 {msg.role === "user" ? (
-                  <div className="max-w-[85%] rounded-xl bg-slate-800 px-4 py-2.5 text-sm text-white">
+                  <div className="max-w-[85%] rounded-xl bg-slate-800 px-4 py-2.5 text-sm text-white dark:bg-slate-700">
                     {msg.content}
                   </div>
                 ) : (
-                  <div className="w-full max-w-[90%] rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                  <div className="w-full max-w-[90%] rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/90">
                     <div className="flex items-center gap-2">
                       <span className="grid h-5 w-5 place-items-center rounded-full bg-teal-600 text-[10px] text-white">
                         ✦
                       </span>
-                      <p className="text-xs font-bold text-slate-800">SupportDock</p>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">SupportDock</p>
                       {msg.is_mock && (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/70 dark:text-amber-300">
                           Mock response
                         </span>
                       )}
                     </div>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-200">
                       {msg.content}
                     </p>
-
-                    {msg.sources && msg.sources.length > 0 && (
-                      <div className="mt-3 border-t border-slate-200 pt-2.5">
-                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                          Sources
-                        </p>
-                        <div className="mt-1.5 space-y-1.5">
-                          {msg.sources.map((source) => (
-                            <article
-                              className="rounded-lg border border-teal-100 bg-white p-2.5"
-                              key={source.chunk_id}
-                            >
-                              <p className="text-xs font-bold text-teal-800">
-                                ↗ {source.document_name}
-                                {source.page_number
-                                  ? ` · Page ${source.page_number}`
-                                  : source.section_title
-                                  ? ` · ${source.section_title}`
-                                  : ""}
-                              </p>
-                              <p className="mt-0.5 text-[11px] leading-4 text-slate-600">
-                                {source.snippet}
-                              </p>
-                            </article>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -181,7 +155,7 @@ export function KnowledgeChat({ workspace }: { workspace: Workspace }) {
         )}
 
         {loading && (
-          <div className="mb-4 flex items-center gap-2 text-xs text-slate-500">
+          <div className="mb-4 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <span className="h-2 w-2 animate-bounce rounded-full bg-teal-600 [animation-delay:-0.3s]" />
             <span className="h-2 w-2 animate-bounce rounded-full bg-teal-600 [animation-delay:-0.15s]" />
             <span className="h-2 w-2 animate-bounce rounded-full bg-teal-600" />
@@ -190,7 +164,10 @@ export function KnowledgeChat({ workspace }: { workspace: Workspace }) {
         )}
 
         {error && (
-          <p role="alert" className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">
+          <p
+            role="alert"
+            className="mb-4 rounded-xl bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+          >
             {error}
           </p>
         )}
@@ -204,8 +181,8 @@ export function KnowledgeChat({ workspace }: { workspace: Workspace }) {
             maxLength={2000}
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
-            className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-3 outline-none focus:border-teal-500"
-            placeholder="e.g. Does monthly rental income attract GST?"
+            className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-teal-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500"
+            placeholder="e.g. As a transporter, what records do I need to maintain?"
           />
           <button
             className="button-primary disabled:opacity-60"

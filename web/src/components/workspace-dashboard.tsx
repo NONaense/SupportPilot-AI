@@ -20,68 +20,139 @@ export function WorkspaceDashboard() {
   async function load() {
     try {
       const supabase = getSupabaseClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.replace("/login"); return; }
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
       setEmail(session.user.email ?? "");
-      const response = await fetch(`${apiUrl}/api/v1/workspaces`, { headers: { Authorization: `Bearer ${session.access_token}` } });
-      if (!response.ok) throw new Error((await response.json()).detail ?? "Could not load your workspaces.");
+      const response = await fetch(`${apiUrl}/api/v1/workspaces`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!response.ok)
+        throw new Error((await response.json()).detail ?? "Could not load your workspaces.");
       setWorkspaces(await response.json());
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not load your workspaces."); }
-    finally { setLoading(false); }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not load your workspaces.");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  useEffect(() => { void load(); }, []); // Session is rechecked by the API on every request.
+  useEffect(() => {
+    void load();
+  }, []);
 
   async function createWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setCreating(true); setError(undefined);
+    event.preventDefault();
+    setCreating(true);
+    setError(undefined);
     const form = event.currentTarget;
     try {
       const name = String(new FormData(form).get("name") ?? "");
       const supabase = getSupabaseClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.replace("/login"); return; }
-      const response = await fetch(`${apiUrl}/api/v1/workspaces`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ name }) });
-      if (!response.ok) throw new Error((await response.json()).detail ?? "Could not create your workspace.");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+      const response = await fetch(`${apiUrl}/api/v1/workspaces`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ name }),
+      });
+      if (!response.ok)
+        throw new Error((await response.json()).detail ?? "Could not create your workspace.");
       const createdWorkspace: Workspace = await response.json();
       setWorkspaces((current) => [...current, createdWorkspace]);
       form.reset();
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not create your workspace."); }
-    finally { setCreating(false); }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not create your workspace.");
+    } finally {
+      setCreating(false);
+    }
   }
 
-  async function signOut() { const supabase = getSupabaseClient(); await supabase.auth.signOut(); router.replace("/"); }
+  async function signOut() {
+    const supabase = getSupabaseClient();
+    await supabase.auth.signOut();
+    router.replace("/");
+  }
 
-  if (loading) return <p className="p-8 text-slate-600">Checking your secure session…</p>;
+  if (loading)
+    return (
+      <div className="shell py-12">
+        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+          Checking your secure session…
+        </p>
+      </div>
+    );
+
   return (
     <div className="shell py-8">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <p className="eyebrow">Private workspace</p>
-          <h1 className="mt-3 text-3xl font-extrabold tracking-tight">Your SupportDock</h1>
-          <p className="mt-2 text-slate-600">Signed in as {email}. Workspace access is checked by the API and database policies.</p>
+          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+            Your SupportDock
+          </h1>
+          <p className="mt-2 text-slate-600 dark:text-slate-400">
+            Signed in as <span className="font-semibold text-slate-800 dark:text-slate-200">{email}</span>. Workspace access is verified by tenant-isolation policies.
+          </p>
         </div>
-        <button className="button-secondary" onClick={() => void signOut()}>Sign out</button>
+        <button className="button-secondary" onClick={() => void signOut()}>
+          Sign out
+        </button>
       </div>
 
-      {error && <p role="alert" className="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
+      {error && (
+        <p
+          role="alert"
+          className="mt-6 rounded-xl bg-rose-50 p-4 text-sm text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
+        >
+          {error}
+        </p>
+      )}
 
-      <section className="mt-7 card p-6">
-        <h2 className="text-lg font-extrabold">Your workspaces</h2>
+      <section className="mt-7 card p-6 dark:border-slate-800 dark:bg-slate-900">
+        <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Your workspaces</h2>
         {workspaces.length > 0 ? (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {workspaces.map((workspace) => (
-              <article className="rounded-xl border border-slate-200 p-4" key={workspace.id}>
-                <p className="font-bold">{workspace.name}</p>
-                <p className="mt-1 text-sm text-slate-500">{workspace.slug} · {workspace.role}</p>
+              <article
+                className="rounded-xl border border-slate-200 p-4 transition-colors dark:border-slate-800 dark:bg-slate-800/60"
+                key={workspace.id}
+              >
+                <p className="font-bold text-slate-900 dark:text-white">{workspace.name}</p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  {workspace.slug} · <span className="capitalize">{workspace.role}</span>
+                </p>
               </article>
             ))}
           </div>
         ) : (
-          <p className="mt-3 text-sm leading-6 text-slate-600">You do not belong to a workspace yet. Create one below; you will become its owner.</p>
+          <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
+            You do not belong to a workspace yet. Create one below; you will become its owner.
+          </p>
         )}
         <form className="mt-6 flex flex-col gap-3 sm:flex-row" onSubmit={createWorkspace}>
-          <input required name="name" maxLength={120} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-3 outline-none focus:border-teal-500" placeholder="Business name" />
-          <button className="button-primary disabled:opacity-60" disabled={creating}>{creating ? "Creating…" : "Create workspace"}</button>
+          <input
+            required
+            name="name"
+            maxLength={120}
+            className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-teal-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500"
+            placeholder="Business name (e.g. Acme Logistics)"
+          />
+          <button className="button-primary disabled:opacity-60" disabled={creating}>
+            {creating ? "Creating…" : "Create workspace"}
+          </button>
         </form>
       </section>
 
@@ -93,10 +164,13 @@ export function WorkspaceDashboard() {
         </>
       )}
 
-      <section className="mt-7 rounded-2xl bg-ink p-6 text-white">
+      <section className="mt-7 rounded-2xl bg-ink p-6 text-white border border-slate-800">
         <p className="text-sm font-bold text-teal-300">GROUNDING SAFEGUARD</p>
         <h2 className="mt-2 text-2xl font-extrabold">No evidence, no business answer.</h2>
-        <p className="mt-3 leading-7 text-slate-300">SupportDock returns a clear human-handoff response when the indexed knowledge base does not support an answer.</p>
+        <p className="mt-3 leading-7 text-slate-300">
+          SupportDock returns a clear human-handoff response when the indexed knowledge base does not
+          support an answer.
+        </p>
       </section>
     </div>
   );

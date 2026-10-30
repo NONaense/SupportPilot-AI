@@ -119,53 +119,57 @@ export function ConversationInspector({ workspaceId, slug }: { workspaceId: stri
       {/* Real Live Database Metrics */}
       <section>
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-extrabold text-slate-900">Workspace Health & Metrics</h2>
-          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+          <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Workspace Health & Metrics</h2>
+          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
             Live Database Telemetry
           </span>
         </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-4">
-          <div className="card p-5">
-            <p className="text-xs font-semibold text-slate-500">Total Conversations</p>
-            <p className="mt-2 text-3xl font-extrabold text-slate-900">
+          <div className="card p-5 dark:border-slate-800 dark:bg-slate-900">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Conversations</p>
+            <p className="mt-2 text-3xl font-extrabold text-slate-900 dark:text-white">
               {metrics ? metrics.conversations_count : "—"}
             </p>
-            <p className="mt-1 text-xs text-slate-400">Total customer threads</p>
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Total customer threads</p>
           </div>
-          <div className="card p-5">
-            <p className="text-xs font-semibold text-slate-500">Sourced Answers</p>
-            <p className="mt-2 text-3xl font-extrabold text-teal-600">
+          <div className="card p-5 dark:border-slate-800 dark:bg-slate-900">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Grounded Accuracy</p>
+            <p className="mt-2 text-3xl font-extrabold text-teal-600 dark:text-teal-400">
               {metrics ? `${metrics.sourced_answers_percent}%` : "—"}
             </p>
-            <p className="mt-1 text-xs text-slate-400">Grounded with citations</p>
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Knowledge-anchored answers</p>
           </div>
-          <div className="card p-5">
-            <p className="text-xs font-semibold text-slate-500">Needs Human Follow-up</p>
-            <p className={`mt-2 text-3xl font-extrabold ${metrics && metrics.unanswered_count > 0 ? "text-amber-600" : "text-slate-900"}`}>
+          <div className="card p-5 dark:border-slate-800 dark:bg-slate-900">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Needs Human Follow-up</p>
+            <p
+              className={`mt-2 text-3xl font-extrabold ${
+                metrics && metrics.unanswered_count > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-900 dark:text-white"
+              }`}
+            >
               {metrics ? metrics.unanswered_count : "—"}
             </p>
-            <p className="mt-1 text-xs text-slate-400">Unanswered questions</p>
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Unanswered questions</p>
           </div>
-          <div className="card p-5">
-            <p className="text-xs font-semibold text-slate-500">Documents Indexed</p>
-            <p className="mt-2 text-3xl font-extrabold text-slate-900">
+          <div className="card p-5 dark:border-slate-800 dark:bg-slate-900">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Documents Indexed</p>
+            <p className="mt-2 text-3xl font-extrabold text-slate-900 dark:text-white">
               {metrics ? metrics.documents_ready : "—"}
             </p>
-            <p className="mt-1 text-xs text-slate-400">Active knowledge sources</p>
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Active knowledge sources</p>
           </div>
         </div>
       </section>
 
       {/* Public Chat Link Share Box */}
-      <section className="card flex flex-col justify-between gap-4 border-teal-200 bg-gradient-to-r from-teal-50/50 via-white to-white p-5 sm:flex-row sm:items-center">
+      <section className="card flex flex-col justify-between gap-4 border-teal-200 bg-gradient-to-r from-teal-50/50 via-white to-white p-5 sm:flex-row sm:items-center dark:border-teal-900/60 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-teal-800">
-            Public Support Widget
+          <p className="text-xs font-bold uppercase tracking-wider text-teal-800 dark:text-teal-300">
+            Public Support Assistant
           </p>
-          <h3 className="mt-1 text-base font-bold text-slate-900">
+          <h3 className="mt-1 text-base font-bold text-slate-900 dark:text-white">
             Share your SupportDock with visitors and customers
           </h3>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
             Visitors can chat with your knowledge base, refresh, and retrieve their conversations.
           </p>
         </div>
@@ -181,22 +185,22 @@ export function ConversationInspector({ workspaceId, slug }: { workspaceId: stri
       </section>
 
       {/* Conversations List & Inspection */}
-      <section className="card overflow-hidden">
-        <div className="flex flex-col justify-between gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center">
+      <section className="card overflow-hidden dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col justify-between gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center dark:border-slate-800">
           <div>
-            <h2 className="text-lg font-extrabold text-slate-900">Conversations & Inquiries</h2>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Inspect visitor dialogs, grounded citations, and unanswered topics.
+            <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Conversations & Inquiries</h2>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              Inspect visitor dialogs and track customer inquiries.
             </p>
           </div>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => setActiveTab("all")}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
                 activeTab === "all"
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  ? "bg-slate-900 text-white dark:bg-teal-600"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
               }`}
             >
               All ({conversations.length})
@@ -204,10 +208,10 @@ export function ConversationInspector({ workspaceId, slug }: { workspaceId: stri
             <button
               type="button"
               onClick={() => setActiveTab("unanswered")}
-              className={`rounded-lg px-3 py-1.5 text-xs font-bold ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
                 activeTab === "unanswered"
                   ? "bg-amber-600 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
               }`}
             >
               Needs Attention ({conversations.filter((c) => c.has_unanswered).length})
@@ -215,22 +219,22 @@ export function ConversationInspector({ workspaceId, slug }: { workspaceId: stri
             <button
               type="button"
               onClick={() => void loadData()}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
             >
               ↻ Refresh
             </button>
           </div>
         </div>
 
-        {error && <p className="bg-rose-50 p-4 text-xs text-rose-700">{error}</p>}
+        {error && <p className="bg-rose-50 p-4 text-xs text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">{error}</p>}
 
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100 dark:divide-slate-800">
           {loading ? (
             <p className="p-8 text-center text-xs text-slate-400">Loading conversations…</p>
           ) : filteredConversations.length === 0 ? (
             <div className="p-10 text-center">
-              <p className="text-sm font-bold text-slate-700">No conversations recorded yet</p>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No conversations recorded yet</p>
+              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
                 Ask a question using the test box or visit your public chat page.
               </p>
             </div>
@@ -238,35 +242,35 @@ export function ConversationInspector({ workspaceId, slug }: { workspaceId: stri
             filteredConversations.map((conv) => (
               <div
                 key={conv.id}
-                className="flex flex-col justify-between gap-3 p-5 transition hover:bg-slate-50/60 sm:flex-row sm:items-center"
+                className="flex flex-col justify-between gap-3 p-5 transition hover:bg-slate-50/60 dark:hover:bg-slate-800/40 sm:flex-row sm:items-center"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                         conv.is_visitor
-                          ? "bg-blue-50 text-blue-700"
-                          : "bg-purple-50 text-purple-700"
+                          ? "bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300"
+                          : "bg-purple-50 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300"
                       }`}
                     >
                       {conv.is_visitor ? "Visitor" : "Team Member"}
                     </span>
                     {conv.has_unanswered && (
-                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950/70 dark:text-amber-300">
                         Needs Human Follow-up
                       </span>
                     )}
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-400 dark:text-slate-500">
                       {new Date(conv.updated_at).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
                     </span>
                   </div>
-                  <p className="mt-2 truncate text-sm font-bold text-slate-900">
+                  <p className="mt-2 truncate text-sm font-bold text-slate-900 dark:text-white">
                     {conv.last_question ?? "Empty conversation"}
                   </p>
-                  <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">
+                  <p className="mt-0.5 line-clamp-1 text-xs text-slate-500 dark:text-slate-400">
                     {conv.last_answer ?? "No response"}
                   </p>
                 </div>
@@ -286,83 +290,54 @@ export function ConversationInspector({ workspaceId, slug }: { workspaceId: stri
 
       {/* Conversation Detail Inspection Modal */}
       {selectedConv && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="card flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
+          <div className="card flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden shadow-2xl dark:border-slate-800 dark:bg-slate-900">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-6 py-4">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-800/80">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
                   Conversation Inspection
                 </p>
-                <h3 className="mt-0.5 text-base font-bold text-slate-900">
+                <h3 className="mt-0.5 text-base font-bold text-slate-900 dark:text-white">
                   {selectedConv.is_visitor ? "Public Visitor" : "Team Member"} Thread
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedConv(null)}
-                className="rounded-lg p-2 text-xs font-bold text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                className="rounded-lg p-2 text-xs font-bold text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
               >
                 ✕ Close
               </button>
             </div>
 
             {/* Modal Body: Full Transcript */}
-            <div className="flex-1 space-y-4 overflow-y-auto p-6" style={{ maxHeight: "60vh" }}>
+            <div className="flex-1 space-y-4 overflow-y-auto p-6 dark:bg-slate-950/30" style={{ maxHeight: "60vh" }}>
               {selectedConv.messages.map((msg) => (
                 <div
                   key={msg.id}
                   className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
                 >
                   {msg.role === "user" ? (
-                    <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-slate-900 px-4 py-3 text-sm text-white">
+                    <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-teal-600 px-4 py-3 text-sm text-white">
                       {msg.content}
                     </div>
                   ) : (
-                    <div className="w-full max-w-[92%] rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="w-full max-w-[92%] rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-800/90">
                       <div className="flex items-center gap-2">
                         <span className="grid h-6 w-6 place-items-center rounded-full bg-teal-600 text-[10px] text-white">
                           ✦
                         </span>
-                        <p className="text-xs font-bold text-slate-800">SupportDock</p>
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">SupportDock</p>
                         {msg.is_mock && (
-                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/70 dark:text-amber-300">
                             Mock response
                           </span>
                         )}
                       </div>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800">
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-800 dark:text-slate-200">
                         {msg.content}
                       </p>
-
-                      {/* Cited Sources */}
-                      {msg.sources && msg.sources.length > 0 && (
-                        <div className="mt-3 border-t border-slate-200 pt-3">
-                          <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">
-                            Supporting Citations
-                          </p>
-                          <div className="mt-1.5 space-y-1.5">
-                            {msg.sources.map((src) => (
-                              <article
-                                key={src.chunk_id}
-                                className="rounded-lg border border-teal-100 bg-white p-2.5 text-xs"
-                              >
-                                <p className="font-bold text-teal-800">
-                                  ↗ {src.document_name}
-                                  {src.page_number
-                                    ? ` · Page ${src.page_number}`
-                                    : src.section_title
-                                    ? ` · ${src.section_title}`
-                                    : ""}
-                                </p>
-                                <p className="mt-1 text-[11px] leading-4 text-slate-600">
-                                  {src.snippet}
-                                </p>
-                              </article>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -370,7 +345,7 @@ export function ConversationInspector({ workspaceId, slug }: { workspaceId: stri
             </div>
 
             {/* Modal Footer */}
-            <div className="flex justify-between border-t border-slate-100 bg-slate-50 px-6 py-3 text-xs text-slate-500">
+            <div className="flex justify-between border-t border-slate-100 bg-slate-50 px-6 py-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/80 dark:text-slate-400">
               <span>ID: {selectedConv.id}</span>
               <button
                 type="button"

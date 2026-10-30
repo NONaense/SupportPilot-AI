@@ -44,7 +44,10 @@ export function ChatWidget({ slug }: { slug: string }) {
   useEffect(() => {
     let vid = localStorage.getItem("supportdock_visitor_id");
     if (!vid) {
-      vid = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "v-" + Math.random().toString(36).substring(2, 12);
+      vid =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : "v-" + Math.random().toString(36).substring(2, 12);
       localStorage.setItem("supportdock_visitor_id", vid);
     }
     setVisitorId(vid);
@@ -58,55 +61,64 @@ export function ChatWidget({ slug }: { slug: string }) {
 
         const savedConvId = localStorage.getItem(`supportdock_conv_${slug}`);
         if (savedConvId) {
-          setConversationId(savedConvId);
-          try {
-            const convRes = await fetch(`${apiUrl}/api/v1/public/workspaces/${slug}/conversations/${savedConvId}?visitor_id=${vid}`);
-            if (convRes.ok) {
-              const convData = await convRes.json();
-              setMessages(convData.messages ?? []);
-            }
-          } catch {
-            // Ignore stale conversation fetch error
+          const convRes = await fetch(
+            `${apiUrl}/api/v1/public/workspaces/${slug}/conversations/${savedConvId}?visitor_id=${encodeURIComponent(
+              vid || ""
+            )}`
+          );
+          if (convRes.ok) {
+            const convData = await convRes.json();
+            setConversationId(convData.id);
+            setMessages(
+              (convData.messages ?? []).map((m: any) => ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                is_mock: m.is_mock,
+                created_at: m.created_at,
+                sources: m.sources ?? [],
+              }))
+            );
           }
         }
       } catch {
-        // Silently handle widget init failure
+        /* gracefully handle network or server failure */
       }
     }
 
     void init();
   }, [slug]);
 
-  // Focus input when opened
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 150);
-    }
-  }, [isOpen]);
-
-  // Auto-scroll on new message
+  // Scroll to bottom on message update
   useEffect(() => {
     if (isOpen) {
       scrollRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, loading, isOpen]);
 
+  // Focus input when opened
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [isOpen]);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmed = question.trim();
-    if (!trimmed || loading || !workspace) return;
+    if (!trimmed || loading) return;
 
     setError(undefined);
     setLoading(true);
 
-    const tempUserMsg: Message = {
-      id: "temp-" + Date.now(),
+    const userMsg: Message = {
+      id: "usr-" + Date.now(),
       role: "user",
       content: trimmed,
       created_at: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, tempUserMsg]);
+    setMessages((prev) => [...prev, userMsg]);
     setQuestion("");
 
     try {
@@ -161,7 +173,7 @@ export function ChatWidget({ slug }: { slug: string }) {
           id="supportdock-widget-window"
           role="region"
           aria-label={`${workspace?.name ?? "Support"} chat dialog`}
-          className="card mb-3 flex h-[520px] w-[360px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden shadow-2xl transition-all sm:w-[400px]"
+          className="card mb-3 flex h-[520px] w-[360px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden shadow-2xl transition-all sm:w-[400px] dark:border-slate-800 dark:bg-slate-900"
         >
           {/* Widget Header */}
           <header className="flex items-center justify-between border-b border-teal-700 bg-teal-600 px-4 py-3 text-white">
@@ -201,15 +213,15 @@ export function ChatWidget({ slug }: { slug: string }) {
             tabIndex={0}
             role="log"
             aria-live="polite"
-            className="flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-4 text-xs"
+            className="flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-4 text-xs dark:bg-slate-950/60"
           >
             {messages.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center p-4 text-center">
-                <span className="grid h-10 w-10 place-items-center rounded-full bg-teal-100 text-teal-700 text-lg">
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-teal-100 text-teal-700 text-lg dark:bg-teal-950/70 dark:text-teal-300">
                   ✦
                 </span>
-                <p className="mt-3 font-bold text-slate-800">Hi there! How can we help?</p>
-                <p className="mt-1 text-[11px] text-slate-500">
+                <p className="mt-3 font-bold text-slate-800 dark:text-slate-100">Hi there! How can we help?</p>
+                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                   Ask any question about our services, pricing, or policies.
                 </p>
               </div>
@@ -224,44 +236,21 @@ export function ChatWidget({ slug }: { slug: string }) {
                       {msg.content}
                     </div>
                   ) : (
-                    <div className="w-full max-w-[92%] rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                    <div className="w-full max-w-[92%] rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-800/90">
                       <div className="flex items-center gap-1.5">
                         <span className="grid h-4 w-4 place-items-center rounded-full bg-teal-600 text-[8px] text-white">
                           ✦
                         </span>
-                        <p className="text-[11px] font-bold text-slate-800">SupportDock</p>
+                        <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200">SupportDock</p>
                         {msg.is_mock && (
-                          <span className="rounded bg-amber-100 px-1.5 py-0.2 text-[9px] font-bold text-amber-800">
+                          <span className="rounded bg-amber-100 px-1.5 py-0.2 text-[9px] font-bold text-amber-800 dark:bg-amber-950/70 dark:text-amber-300">
                             Mock
                           </span>
                         )}
                       </div>
-                      <p className="mt-1.5 whitespace-pre-wrap leading-5 text-slate-700">
+                      <p className="mt-1.5 whitespace-pre-wrap leading-5 text-slate-700 dark:text-slate-200">
                         {msg.content}
                       </p>
-
-                      {/* Source Citations */}
-                      {msg.sources && msg.sources.length > 0 && (
-                        <div className="mt-2.5 border-t border-slate-100 pt-2">
-                          <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
-                            Sources
-                          </p>
-                          <div className="mt-1 space-y-1">
-                            {msg.sources.map((src) => (
-                              <article
-                                key={src.chunk_id}
-                                className="rounded border border-teal-100 bg-teal-50/50 p-1.5 text-[10px]"
-                              >
-                                <p className="font-bold text-teal-800">
-                                  ↗ {src.document_name}
-                                  {src.page_number ? ` · p. ${src.page_number}` : ""}
-                                </p>
-                                <p className="mt-0.5 text-slate-600">{src.snippet}</p>
-                              </article>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -271,12 +260,12 @@ export function ChatWidget({ slug }: { slug: string }) {
             {/* Loading typing indicator */}
             {loading && (
               <div className="flex items-start">
-                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-800">
                   <div className="flex items-center gap-1.5" aria-busy="true">
                     <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-600 [animation-delay:-0.3s]" />
                     <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-600 [animation-delay:-0.15s]" />
                     <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-600" />
-                    <span className="ml-1 text-[10px] text-slate-400">Searching docs…</span>
+                    <span className="ml-1 text-[10px] text-slate-400 dark:text-slate-400">Searching docs…</span>
                   </div>
                 </div>
               </div>
@@ -287,13 +276,19 @@ export function ChatWidget({ slug }: { slug: string }) {
 
           {/* Error Message */}
           {error && (
-            <div role="alert" className="border-t border-rose-100 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
+            <div
+              role="alert"
+              className="border-t border-rose-100 bg-rose-50 px-3 py-2 text-[11px] text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/60 dark:text-rose-300"
+            >
               {error}
             </div>
           )}
 
           {/* Chat Input */}
-          <form onSubmit={submit} className="flex gap-2 border-t border-slate-200 bg-white p-2.5">
+          <form
+            onSubmit={submit}
+            className="flex gap-2 border-t border-slate-200 bg-white p-2.5 dark:border-slate-800 dark:bg-slate-900"
+          >
             <label htmlFor="widget-chat-input" className="sr-only">
               Type your question
             </label>
@@ -306,7 +301,7 @@ export function ChatWidget({ slug }: { slug: string }) {
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="Ask a question…"
-              className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-teal-500"
+              className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-teal-500 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder-slate-500"
             />
             <button
               type="submit"
@@ -327,7 +322,7 @@ export function ChatWidget({ slug }: { slug: string }) {
           aria-expanded={isOpen}
           aria-controls="supportdock-widget-window"
           aria-label={isOpen ? "Close support chat" : "Open support chat"}
-          className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-600 text-white shadow-xl transition-all duration-200 hover:scale-105 hover:bg-teal-500 focus:outline-none focus:ring-4 focus:ring-teal-200"
+          className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-600 text-white shadow-xl transition-all duration-200 hover:scale-105 hover:bg-teal-500 focus:outline-none focus:ring-4 focus:ring-teal-200 dark:focus:ring-teal-900"
         >
           {isOpen ? (
             <span className="text-xl font-bold">✕</span>
