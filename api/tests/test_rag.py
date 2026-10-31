@@ -298,3 +298,21 @@ def test_gemini_language_model_provider_generates_grounded_answer(monkeypatch: p
     assert result.text == "Memberships can be paused for up to 30 days."
     assert result.is_mock is False
     assert result.provider == "gemini"
+
+
+def test_greeting_returns_friendly_response() -> None:
+    repository = FakeRagRepository([])
+    service = RagService(repository, FakeEmbeddingProvider(), FakeLanguageProvider(), InMemoryRateLimiter())
+    result = service.ask(ALICE_WORKSPACE, ALICE, "hi")
+    assert result.supported is True
+    assert "Hello!" in result.answer
+    assert result.sources == []
+
+
+def test_identity_inquiry_returns_introduction() -> None:
+    repository = FakeRagRepository([])
+    service = RagService(repository, FakeEmbeddingProvider(), FakeLanguageProvider(), InMemoryRateLimiter())
+    result = service.ask(ALICE_WORKSPACE, ALICE, "who are you")
+    assert result.supported is True
+    assert "SupportDock" in result.answer
+    assert result.sources == []

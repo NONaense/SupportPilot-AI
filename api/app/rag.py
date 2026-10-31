@@ -1,4 +1,5 @@
 import logging
+import re
 import threading
 import time
 import uuid
@@ -160,6 +161,18 @@ class RagIndexer:
             return "error"
 
 
+def _is_greeting(text: str) -> bool:
+    cleaned = re.sub(r"[^\w\s]", "", text.strip().lower())
+    greetings = {"hi", "hello", "hey", "greetings", "good morning", "good afternoon", "good evening", "hi there", "hello there", "hey there"}
+    return cleaned in greetings
+
+
+def _is_identity_inquiry(text: str) -> bool:
+    cleaned = re.sub(r"[^\w\s]", "", text.strip().lower())
+    inquiries = {"who are you", "what are you", "what is your name", "who made you", "what do you do"}
+    return cleaned in inquiries
+
+
 class RagService:
     def __init__(self, repository: DatabaseRagRepository, embeddings: EmbeddingProvider, language_model: LanguageModelProvider, rate_limiter: InMemoryRateLimiter) -> None:
         self.repository = repository
@@ -171,6 +184,16 @@ class RagService:
         settings = get_settings()
         limiter_key = f"{workspace_id}:{user_id}" if user_id else f"public:{workspace_id}:{client_ip or visitor_id or 'anon'}"
         self.rate_limiter.check(limiter_key, settings.chat_rate_limit, settings.chat_rate_window_seconds)
+
+        if _is_greeting(question):
+            answer = "Hello! I am SupportDock, your AI customer support assistant. How can I help you today with questions about our documentation and services?"
+            conversation = self.repository.persist_exchange(workspace_id, user_id, question, answer, [], False, conversation_id, visitor_id=visitor_id)
+            return AskResult(answer=answer, sources=[], conversation_id=conversation, is_mock=False, provider="supportdock", supported=True)
+
+        if _is_identity_inquiry(question):
+            answer = "I am SupportDock, an AI assistant dedicated to answering questions from this workspace's knowledge base. How can I help you today?"
+            conversation = self.repository.persist_exchange(workspace_id, user_id, question, answer, [], False, conversation_id, visitor_id=visitor_id)
+            return AskResult(answer=answer, sources=[], conversation_id=conversation, is_mock=False, provider="supportdock", supported=True)
         try:
             query_vector = self.embeddings.embed([question])[0]
             sources = self.repository.retrieve(workspace_id, user_id, query_vector, settings.rag_max_chunks, settings.rag_match_threshold)
