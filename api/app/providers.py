@@ -95,10 +95,10 @@ class OpenAILanguageModelProvider:
         self.api_key = settings.openai_api_key
 
     def generate_grounded_answer(self, question: str, sources: list[GroundingSource]) -> GenerationResult:
-        instructions = """You are SupportDock, a business customer support assistant. Answer the customer's question grounded in the retrieved context below.
+        instructions = """You are SupportDock, a business customer support assistant. Answer the customer's question clearly and accurately grounded in the retrieved context below.
 
 Rules:
-1. Truth-first: Rely strictly on the retrieved context for facts, policies, numbers, prices, names, requirements, and dates. Do not invent facts, policies, prices, citations, or external information not present in the context.
+1. Truth-first: Rely strictly on the retrieved context for facts, policies, numbers, prices, names, requirements, and dates. Explain the answer in your own clear words; do not copy long verbatim blocks word-for-word. Do not invent facts, policies, prices, citations, or external information not present in the context.
 2. Greetings and chit-chat: If the customer offers a greeting (e.g. "hi", "hello") or asks who you are, respond politely and briefly introduce yourself as SupportDock.
 3. Partial / Multi-part questions: If part of the customer's question is answered in the context (for example, skills or policies explicitly listed in the document), answer that part accurately. If the customer asks for extra details, outside definitions, or explanations not present in the document (such as definitions of listed programming languages or outside concepts), provide the supported part and explicitly state that the document does not contain the additional definitions or details.
 4. Unsupported questions: If the retrieved context contains no relevant information to answer the question at all, reply exactly:
@@ -184,10 +184,10 @@ class GeminiLanguageModelProvider:
         self.api_key = settings.gemini_api_key
 
     def generate_grounded_answer(self, question: str, sources: list[GroundingSource]) -> GenerationResult:
-        instructions = """You are SupportDock, a business customer support assistant. Answer the customer's question grounded in the retrieved context below.
+        instructions = """You are SupportDock, a business customer support assistant. Answer the customer's question clearly and accurately grounded in the retrieved context below.
 
 Rules:
-1. Truth-first: Rely strictly on the retrieved context for facts, policies, numbers, prices, names, requirements, and dates. Do not invent facts, policies, prices, citations, or external information not present in the context.
+1. Truth-first: Rely strictly on the retrieved context for facts, policies, numbers, prices, names, requirements, and dates. Explain the answer in your own clear words; do not copy long verbatim blocks word-for-word. Do not invent facts, policies, prices, citations, or external information not present in the context.
 2. Greetings and chit-chat: If the customer offers a greeting (e.g. "hi", "hello") or asks who you are, respond politely and briefly introduce yourself as SupportDock.
 3. Partial / Multi-part questions: If part of the customer's question is answered in the context (for example, skills or policies explicitly listed in the document), answer that part accurately. If the customer asks for extra details, outside definitions, or explanations not present in the document (such as definitions of listed programming languages or outside concepts), provide the supported part and explicitly state that the document does not contain the additional definitions or details.
 4. Unsupported questions: If the retrieved context contains no relevant information to answer the question at all, reply exactly:
@@ -208,7 +208,7 @@ I don't know based on the available knowledge base. Please contact a human for h
                     ],
                 }
             ],
-            "generationConfig": {"temperature": 0.0, "maxOutputTokens": 500},
+            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 800},
         }
 
         # Build fallback model list to survive transient Google capacity spikes
@@ -249,11 +249,13 @@ I don't know based on the available knowledge base. Please contact a human for h
                     last_error = ProviderError("Gemini language model returned no candidates.")
                     break
                 first_candidate = candidates[0]
+                finish_reason = first_candidate.get("finishReason")
                 parts = first_candidate.get("content", {}).get("parts", [])
                 text = "".join(part.get("text", "") for part in parts).strip()
-                if not text:
-                    last_error = ProviderError("Gemini language model returned an empty response.")
-                    break
+                if finish_reason in ("RECITATION", "SAFETY") or not text:
+                    logger.warning("Gemini model %s interrupted (finishReason=%s, text_len=%d)", model_name, finish_reason, len(text))
+                    last_error = ProviderError("The response was interrupted by safety guardrails. Please rephrase your question.")
+                    continue  # Try next fallback model
                 return GenerationResult(text=text, is_mock=False, provider="gemini")
 
         raise last_error or ProviderError("The AI service is currently unavailable. Please try again.")
