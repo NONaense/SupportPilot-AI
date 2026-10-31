@@ -126,6 +126,33 @@ class InMemoryConversationsRepository:
             )
         ]
 
+    def reply_to_conversation(
+        self, workspace_id: str, conversation_id: str, user_id: str, message: str
+    ) -> ConversationDetailResponse:
+        detail = self.get_conversation_detail(workspace_id, conversation_id, user_id)
+        new_msg = MessageItem(
+            id=str(uuid.uuid4()),
+            role="assistant",
+            content=message,
+            is_mock=False,
+            created_at="2026-10-24T12:02:00Z",
+            sources=[],
+        )
+        return ConversationDetailResponse(
+            id=detail.id,
+            workspace_id=detail.workspace_id,
+            created_at=detail.created_at,
+            updated_at="2026-10-24T12:02:00Z",
+            is_visitor=detail.is_visitor,
+            messages=detail.messages + [new_msg],
+        )
+
+    def resolve_conversation(
+        self, workspace_id: str, conversation_id: str, user_id: str, note: str | None = None
+    ) -> ConversationDetailResponse:
+        resolution = note or "[Thread marked as resolved by support agent]"
+        return self.reply_to_conversation(workspace_id, conversation_id, user_id, resolution)
+
 
 @pytest.fixture(autouse=True)
 def setup_overrides():
@@ -199,3 +226,34 @@ def test_conversations_tenant_isolation_and_auth() -> None:
     # Missing auth receives 401
     unauth = client.get(f"/api/v1/workspaces/{WORKSPACE_ID}/metrics")
     assert unauth.status_code == 401
+
+
+def test_admin_reply_and_resolve_conversation() -> None:
+    # 1. Admin sends reply to conversation
+    res = client.post(
+        f"/api/v1/workspaces/{WORKSPACE_ID}/conversations/{CONVERSATION_ID}/reply",
+        headers={"Authorization": "Bearer admin-token"},
+        json={"message": "Yes, we now provide weekend deliveries."},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data["messages"]) == 3
+    assert data["messages"][-1]["content"] == "Yes, we now provide weekend deliveries."
+    assert data["messages"][-1]["role"] == "assistant"
+
+    # 2. Admin marks conversation as resolved
+    resolve_res = client.post(
+        f"/api/v1/workspaces/{WORKSPACE_ID}/conversations/{CONVERSATION_ID}/resolve",
+        headers={"Authorization": "Bearer admin-token"},
+    )
+    assert resolve_res.status_code == 200
+    resolve_data = resolve_res.json()
+    assert "[Thread marked as resolved" in resolve_data["messages"][-1]["content"]
+
+    # 3. Unauthorized stranger cannot reply
+    stranger_res = client.post(
+        f"/api/v1/workspaces/{WORKSPACE_ID}/conversations/{CONVERSATION_ID}/reply",
+        headers={"Authorization": "Bearer stranger-token"},
+        json={"message": "Hack attempt"},
+    )
+    assert stranger_res.status_code == 404

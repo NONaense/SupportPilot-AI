@@ -54,11 +54,17 @@ class UnansweredQuestionResponse(BaseModel):
     created_at: str
 
 
+class AdminReplyRequest(BaseModel):
+    message: str
+
+
 class ConversationsRepository(Protocol):
     def get_metrics(self, workspace_id: str, user_id: str) -> WorkspaceMetricsResponse: ...
     def list_conversations(self, workspace_id: str, user_id: str) -> list[ConversationSummaryResponse]: ...
     def get_conversation_detail(self, workspace_id: str, conversation_id: str, user_id: str) -> ConversationDetailResponse: ...
     def get_unanswered(self, workspace_id: str, user_id: str) -> list[UnansweredQuestionResponse]: ...
+    def reply_to_conversation(self, workspace_id: str, conversation_id: str, user_id: str, message: str) -> ConversationDetailResponse: ...
+    def resolve_conversation(self, workspace_id: str, conversation_id: str, user_id: str, note: str | None = None) -> ConversationDetailResponse: ...
 
 
 class DatabaseConversationsRepository:
@@ -90,8 +96,22 @@ class DatabaseConversationsRepository:
                 select(Message).where(Message.workspace_id == ws_uuid, Message.role == "assistant")
             ).all()
 
+            conversations = session.scalars(
+                select(Conversation).where(Conversation.workspace_id == ws_uuid)
+            ).all()
+
+            unanswered_count = 0
+            for conv in conversations:
+                last_asst = session.scalars(
+                    select(Message)
+                    .where(Message.conversation_id == conv.id, Message.role == "assistant")
+                    .order_by(Message.created_at.desc())
+                    .limit(1)
+                ).first()
+                if last_asst and last_asst.content == UNKNOWN_ANSWER:
+                    unanswered_count += 1
+
             total_assistant = len(assistant_msgs)
-            unanswered_count = sum(1 for m in assistant_msgs if m.content == UNKNOWN_ANSWER or not m.source_chunk_ids)
             supported_count = total_assistant - unanswered_count
             sourced_percent = round((supported_count / total_assistant) * 100) if total_assistant > 0 else 100
 
@@ -134,7 +154,7 @@ class DatabaseConversationsRepository:
 
                 last_q = user_msgs[-1] if user_msgs else None
                 last_a = asst_msgs[-1].content if asst_msgs else None
-                has_unanswered = any(m.content == UNKNOWN_ANSWER for m in asst_msgs)
+                has_unanswered = bool(asst_msgs and asst_msgs[-1].content == UNKNOWN_ANSWER)
 
                 results.append(
                     ConversationSummaryResponse(
@@ -250,6 +270,43 @@ class DatabaseConversationsRepository:
 
             return results
 
+    def reply_to_conversation(
+        self, workspace_id: str, conversation_id: str, user_id: str, message: str
+    ) -> ConversationDetailResponse:
+        ws_uuid = uuid.UUID(workspace_id)
+        conv_uuid = uuid.UUID(conversation_id)
+        with Session(get_engine(), expire_on_commit=False) as session:
+            self._require_workspace_member(session, ws_uuid, uuid.UUID(user_id))
+            conv = session.scalar(
+                select(Conversation).where(Conversation.id == conv_uuid, Conversation.workspace_id == ws_uuid)
+            )
+            if not conv:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found.")
+
+            cleaned = message.strip()
+            if not cleaned:
+                raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Message cannot be empty.")
+
+            reply_msg = Message(
+                conversation_id=conv.id,
+                workspace_id=ws_uuid,
+                role="assistant",
+                content=cleaned,
+                is_mock=False,
+                source_chunk_ids=[],
+            )
+            session.add(reply_msg)
+            conv.updated_at = datetime.utcnow()
+            session.commit()
+
+        return self.get_conversation_detail(workspace_id, conversation_id, user_id)
+
+    def resolve_conversation(
+        self, workspace_id: str, conversation_id: str, user_id: str, note: str | None = None
+    ) -> ConversationDetailResponse:
+        resolution_text = note.strip() if note and note.strip() else "[Thread marked as resolved by support agent]"
+        return self.reply_to_conversation(workspace_id, conversation_id, user_id, resolution_text)
+
 
 def get_conversations_repository() -> ConversationsRepository:
     return DatabaseConversationsRepository()
@@ -290,3 +347,24 @@ def get_unanswered_questions(
     repo: ConversationsRepository = Depends(get_conversations_repository),
 ) -> list[UnansweredQuestionResponse]:
     return repo.get_unanswered(workspace_id, user.id)
+
+
+@router.post("/conversations/{conversation_id}/reply", response_model=ConversationDetailResponse)
+def reply_to_conversation(
+    workspace_id: str,
+    conversation_id: str,
+    payload: AdminReplyRequest,
+    user: CurrentUser = Depends(get_current_user),
+    repo: ConversationsRepository = Depends(get_conversations_repository),
+) -> ConversationDetailResponse:
+    return repo.reply_to_conversation(workspace_id, conversation_id, user.id, payload.message)
+
+
+@router.post("/conversations/{conversation_id}/resolve", response_model=ConversationDetailResponse)
+def resolve_conversation(
+    workspace_id: str,
+    conversation_id: str,
+    user: CurrentUser = Depends(get_current_user),
+    repo: ConversationsRepository = Depends(get_conversations_repository),
+) -> ConversationDetailResponse:
+    return repo.resolve_conversation(workspace_id, conversation_id, user.id)
