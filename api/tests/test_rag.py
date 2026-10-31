@@ -316,3 +316,31 @@ def test_identity_inquiry_returns_introduction() -> None:
     assert result.supported is True
     assert "SupportDock" in result.answer
     assert result.sources == []
+
+
+def test_gemini_503_fallback_succeeds(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.providers import GeminiLanguageModelProvider
+    import time
+    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
+    monkeypatch.setattr(time, "sleep", lambda _: None)
+    get_settings.cache_clear()
+
+    call_count = 0
+
+    def mock_post(url, *args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        request = httpx.Request("POST", url)
+        # First 2 calls return 503 high demand
+        if call_count <= 2:
+            return httpx.Response(503, json={"error": {"code": 503, "message": "High demand"}}, request=request)
+        # Next call returns success
+        return httpx.Response(200, json={
+            "candidates": [{"content": {"parts": [{"text": "Answer after fallback"}]}}]
+        }, request=request)
+
+    monkeypatch.setattr(httpx, "post", mock_post)
+    provider = GeminiLanguageModelProvider()
+    result = provider.generate_grounded_answer("Can I pause my membership?", [SOURCE])
+    assert result.text == "Answer after fallback"
+    assert call_count > 1

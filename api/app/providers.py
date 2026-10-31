@@ -2,6 +2,7 @@ import hashlib
 import logging
 import math
 import re
+import time
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -138,16 +139,32 @@ class GeminiEmbeddingProvider:
                 "content": {"parts": [{"text": text}]},
                 "outputDimensionality": self.dimensions,
             }
-            try:
-                response = httpx.post(url, json=payload, timeout=20.0)
-            except httpx.TimeoutException as error:
-                raise ProviderError("Gemini embedding provider timed out.") from error
-            except httpx.HTTPError as error:
-                raise ProviderError("Gemini embedding provider is unavailable.") from error
+            last_err = None
+            response = None
+            for attempt in range(3):
+                try:
+                    response = httpx.post(url, json=payload, timeout=20.0)
+                except httpx.TimeoutException as error:
+                    last_err = ProviderError("Gemini embedding provider timed out.")
+                    time.sleep(1.0)
+                    continue
+                except httpx.HTTPError as error:
+                    last_err = ProviderError("Gemini embedding provider is unavailable.")
+                    time.sleep(1.0)
+                    continue
 
-            if not response.is_success:
-                logger.error("Gemini embedding provider rejected request (%s): %s", response.status_code, response.text[:200])
-                raise ProviderError(f"Gemini embedding API error ({response.status_code}): {response.text[:120]}")
+                if response.status_code in (429, 503):
+                    time.sleep(1.5)
+                    continue
+                break
+
+            if response is None or not response.is_success:
+                status_code = response.status_code if response else 500
+                resp_text = response.text[:200] if response else str(last_err)
+                logger.error("Gemini embedding provider rejected request (%s): %s", status_code, resp_text)
+                if status_code in (429, 503):
+                    raise ProviderError("The embedding service is experiencing high demand right now. Please try again in a few moments.")
+                raise ProviderError(f"Gemini embedding API error ({status_code}): {resp_text[:120]}")
 
             data = response.json()
             embedding_vals = data.get("embedding", {}).get("values", [])
@@ -179,7 +196,6 @@ I don't know based on the available knowledge base. Please contact a human for h
             f"[SOURCE {index + 1}: {source.document_name}; chunk={source.chunk_id}; page={source.page_number or 'n/a'}; section={source.section_title or 'n/a'}]\nBEGIN UNTRUSTED RETRIEVED DOCUMENT\n{source.content}\nEND UNTRUSTED RETRIEVED DOCUMENT"
             for index, source in enumerate(sources)
         )
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
         payload = {
             "system_instruction": {"parts": [{"text": instructions}]},
             "contents": [
@@ -194,27 +210,53 @@ I don't know based on the available knowledge base. Please contact a human for h
             ],
             "generationConfig": {"temperature": 0.0, "maxOutputTokens": 500},
         }
-        try:
-            response = httpx.post(url, json=payload, timeout=30.0)
-        except httpx.TimeoutException as error:
-            raise ProviderError("Gemini language model timed out.") from error
-        except httpx.HTTPError as error:
-            raise ProviderError("Gemini language model is unavailable.") from error
 
-        if not response.is_success:
-            logger.error("Gemini language model rejected request (%s): %s", response.status_code, response.text[:200])
-            raise ProviderError(f"Gemini API error ({response.status_code}): {response.text[:120]}")
+        # Build fallback model list to survive transient Google capacity spikes
+        candidate_models = [self.model]
+        for fallback in ("gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash"):
+            if fallback not in candidate_models:
+                candidate_models.append(fallback)
 
-        data = response.json()
-        candidates = data.get("candidates", [])
-        if not candidates:
-            raise ProviderError("Gemini language model returned no candidates.")
-        first_candidate = candidates[0]
-        parts = first_candidate.get("content", {}).get("parts", [])
-        text = "".join(part.get("text", "") for part in parts).strip()
-        if not text:
-            raise ProviderError("Gemini language model returned an empty response.")
-        return GenerationResult(text=text, is_mock=False, provider="gemini")
+        last_error = None
+        for model_name in candidate_models:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={self.api_key}"
+            for attempt in range(2):
+                try:
+                    response = httpx.post(url, json=payload, timeout=30.0)
+                except httpx.TimeoutException as error:
+                    last_error = ProviderError("Gemini language model timed out.")
+                    time.sleep(1.0)
+                    continue
+                except httpx.HTTPError as error:
+                    last_error = ProviderError("Gemini language model is unavailable.")
+                    time.sleep(1.0)
+                    continue
+
+                if response.status_code in (429, 503):
+                    logger.warning("Gemini model %s returned %s on attempt %d: %s", model_name, response.status_code, attempt, response.text[:120])
+                    last_error = ProviderError("The AI service is experiencing high demand right now. Please wait a moment and try your question again.")
+                    time.sleep(1.5)
+                    continue
+
+                if not response.is_success:
+                    logger.error("Gemini language model %s rejected request (%s): %s", model_name, response.status_code, response.text[:200])
+                    last_error = ProviderError(f"Gemini API error ({response.status_code}): {response.text[:120]}")
+                    break  # Non-retryable error for this model, try next fallback
+
+                data = response.json()
+                candidates = data.get("candidates", [])
+                if not candidates:
+                    last_error = ProviderError("Gemini language model returned no candidates.")
+                    break
+                first_candidate = candidates[0]
+                parts = first_candidate.get("content", {}).get("parts", [])
+                text = "".join(part.get("text", "") for part in parts).strip()
+                if not text:
+                    last_error = ProviderError("Gemini language model returned an empty response.")
+                    break
+                return GenerationResult(text=text, is_mock=False, provider="gemini")
+
+        raise last_error or ProviderError("The AI service is currently unavailable. Please try again.")
 
 
 def _extract_response_text(data: dict) -> str:
