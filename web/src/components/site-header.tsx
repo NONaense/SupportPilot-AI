@@ -1,16 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Brand } from "./brand";
 import { ThemeToggle } from "./theme-toggle";
+import { getSupabaseClient } from "@/lib/supabase";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    try {
+      const supabase = getSupabaseClient();
+      supabase.auth.getSession().then(({ data }) => {
+        setIsLoggedIn(Boolean(data?.session));
+      });
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, session) => {
+        setIsLoggedIn(Boolean(session));
+      });
+      return () => subscription.unsubscribe();
+    } catch {
+      // Supabase unconfigured or offline
+    }
+  }, []);
+
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90">
       <div className="shell flex h-16 items-center justify-between">
-        <Brand />
+        <Brand href={isLoggedIn ? "/dashboard" : "/"} />
         <nav
           className="hidden items-center gap-7 text-sm font-semibold text-slate-600 dark:text-slate-300 md:flex"
           aria-label="Main navigation"
@@ -27,15 +47,23 @@ export function SiteHeader() {
         </nav>
         <div className="hidden items-center gap-3 md:flex">
           <ThemeToggle />
-          <Link
-            className="text-sm font-bold text-slate-700 transition hover:text-teal-600 dark:text-slate-200 dark:hover:text-teal-400"
-            href="/login"
-          >
-            Sign in
-          </Link>
-          <Link className="button-primary !py-2.5" href="/register">
-            Start free
-          </Link>
+          {isLoggedIn ? (
+            <Link className="button-primary !py-2.5" href="/dashboard">
+              Go to Dashboard →
+            </Link>
+          ) : (
+            <>
+              <Link
+                className="text-sm font-bold text-slate-700 transition hover:text-teal-600 dark:text-slate-200 dark:hover:text-teal-400"
+                href="/login"
+              >
+                Sign in
+              </Link>
+              <Link className="button-primary !py-2.5" href="/register">
+                Start free
+              </Link>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2 md:hidden">
           <ThemeToggle />
@@ -58,10 +86,20 @@ export function SiteHeader() {
             <a href="#features" onClick={() => setOpen(false)}>
               Features
             </a>
-            <Link href="/login">Sign in</Link>
-            <Link className="button-primary" href="/register">
-              Start free
-            </Link>
+            {isLoggedIn ? (
+              <Link className="button-primary" href="/dashboard" onClick={() => setOpen(false)}>
+                Go to Dashboard →
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setOpen(false)}>
+                  Sign in
+                </Link>
+                <Link className="button-primary" href="/register" onClick={() => setOpen(false)}>
+                  Start free
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       )}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
@@ -13,6 +13,19 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const isRegistration = mode === "register";
+
+  useEffect(() => {
+    try {
+      const supabase = getSupabaseClient();
+      supabase.auth.getSession().then(({ data }) => {
+        if (data?.session) {
+          router.replace("/dashboard");
+        }
+      });
+    } catch {
+      // Supabase unconfigured
+    }
+  }, [router]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Brand } from "@/components/brand";
 import { SiteHeader } from "@/components/site-header";
+import { HeroCta } from "@/components/hero-cta";
 
 const features = [
   [
@@ -32,14 +33,7 @@ export default function HomePage() {
             <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600 dark:text-slate-300">
               SupportDock turns your help docs into a clear, friendly support experience with grounded answers directly from your approved knowledge base.
             </p>
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link className="button-primary" href="/register">
-                Build your support dock <span className="ml-2">→</span>
-              </Link>
-              <Link className="button-secondary" href="/demo">
-                View demo workspace
-              </Link>
-            </div>
+            <HeroCta />
             <p className="mt-5 text-sm text-slate-500 dark:text-slate-400">
               No credit card required · Your content stays yours
             </p>

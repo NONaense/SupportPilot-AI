@@ -7,7 +7,7 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-mist transition-colors">
       <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="shell flex h-16 items-center justify-between">
-          <Brand />
+          <Brand href="/dashboard" />
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">
