@@ -104,7 +104,7 @@ Rules:
 4. Unsupported questions: If the retrieved context contains no relevant information to answer the question at all, reply exactly:
 I don't know based on the available knowledge base. Please contact a human for help."""
         context = "\n\n".join(f"[SOURCE {index + 1}: {source.document_name}; chunk={source.chunk_id}; page={source.page_number or 'n/a'}; section={source.section_title or 'n/a'}]\nBEGIN UNTRUSTED RETRIEVED DOCUMENT\n{source.content}\nEND UNTRUSTED RETRIEVED DOCUMENT" for index, source in enumerate(sources))
-        payload = {"model": self.model, "instructions": instructions, "input": f"BEGIN UNTRUSTED CUSTOMER QUESTION\n{question}\nEND UNTRUSTED CUSTOMER QUESTION\n\nRETRIEVED CONTEXT:\n{context}", "temperature": 0, "store": False, "max_output_tokens": 500}
+        payload = {"model": self.model, "instructions": instructions, "input": f"BEGIN UNTRUSTED CUSTOMER QUESTION\n{question}\nEND UNTRUSTED CUSTOMER QUESTION\n\nRETRIEVED CONTEXT:\n{context}", "temperature": 0, "store": False, "max_output_tokens": 2000}
         try:
             response = httpx.post("https://api.openai.com/v1/responses", headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}, json=payload, timeout=30.0)
         except httpx.TimeoutException as error:
@@ -208,7 +208,7 @@ I don't know based on the available knowledge base. Please contact a human for h
                     ],
                 }
             ],
-            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 800},
+            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2048},
         }
 
         # Build fallback model list to survive transient Google capacity spikes
@@ -255,6 +255,10 @@ I don't know based on the available knowledge base. Please contact a human for h
                 if finish_reason in ("RECITATION", "SAFETY") or not text:
                     logger.warning("Gemini model %s interrupted (finishReason=%s, text_len=%d)", model_name, finish_reason, len(text))
                     last_error = ProviderError("The response was interrupted by safety guardrails. Please rephrase your question.")
+                    continue  # Try next fallback model
+                if finish_reason == "MAX_TOKENS" and text and not text.rstrip().endswith((".", "!", "?", '"', "'", "}", ")", "*", "`")):
+                    logger.warning("Gemini model %s hit MAX_TOKENS mid-sentence (text_len=%d): %r", model_name, len(text), text[:80])
+                    last_error = ProviderError("The response was truncated. Please try again.")
                     continue  # Try next fallback model
                 return GenerationResult(text=text, is_mock=False, provider="gemini")
 
